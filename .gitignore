@@ -1,0 +1,37 @@
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Secrets
+k8s/config/secret.yaml
+**/secret.yaml
+**/secrets.yaml
+
+# Uploads
+frontend/uploads/
+services/student-service/uploads/
+
+# Local data
+services/*/data/
+data/
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.swp

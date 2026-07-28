@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: physics-ingress
+  namespace: physics
+
+spec:
+  ingressClassName: nginx
+
+  rules:
+    - host: physics.local
+
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 3000

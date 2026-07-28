@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: physics-config
+  namespace: physics
+data:
+  NODE_ENV: "production"
+
+  AUTH_SERVICE: "http://auth-service:3001"
+  STUDENT_SERVICE: "http://student-service:3002"
+  CONTENT_SERVICE: "http://content-service:3003"
+  PROGRESS_SERVICE: "http://progress-service:3004"
+
+  GATEWAY_URL: "http://gateway:8080"
+  DB_HOST: "postgres"
+  DB_PORT: "5432"

@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: physics
+
+spec:
+  replicas: 2
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app: gateway
+
+  template:
+    metadata:
+      labels:
+        app: gateway
+
+    spec:
+      containers:
+        - name: gateway
+          image: physics-gateway:v2
+          imagePullPolicy: Never
+
+          ports:
+            - containerPort: 8080
+
+          env:
+            - name: PORT
+              value: "8080"
+
+            - name: AUTH_SERVICE
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: AUTH_SERVICE
+
+            - name: STUDENT_SERVICE
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: STUDENT_SERVICE
+
+            - name: CONTENT_SERVICE
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: CONTENT_SERVICE
+
+            - name: PROGRESS_SERVICE
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: PROGRESS_SERVICE
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 30
+            timeoutSeconds: 3
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            timeoutSeconds: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+            timeoutSeconds: 3
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL

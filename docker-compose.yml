@@ -1,0 +1,248 @@
+services:
+
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    image: physics-auth:v1
+    container_name: physics-auth
+
+    environment:
+      PORT: 3001
+      NODE_ENV: production
+
+    volumes:
+      - ./services/auth-service/data:/app/data
+
+    networks:
+      - backend
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  student-service:
+    build:
+      context: ./services/student-service
+      dockerfile: Dockerfile
+    image: physics-student:v1
+    container_name: physics-student
+
+    environment:
+      PORT: 3002
+      NODE_ENV: production
+
+    volumes:
+      - ./services/student-service/data:/app/data
+      - ./services/student-service/uploads:/app/uploads
+
+    networks:
+      - backend
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3002/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  content-service:
+    build:
+      context: ./services/content-service
+      dockerfile: Dockerfile
+    image: physics-content:v1
+    container_name: physics-content
+
+    environment:
+      PORT: 3003
+      NODE_ENV: production
+
+    volumes:
+      - ./services/content-service/data:/app/data
+
+    networks:
+      - backend
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3003/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  progress-service:
+    build:
+      context: ./services/progress-service
+      dockerfile: Dockerfile
+    image: physics-progress:v1
+    container_name: physics-progress
+
+    environment:
+      PORT: 3004
+      NODE_ENV: production
+
+    volumes:
+      - ./services/progress-service/data:/app/data
+
+    networks:
+      - backend
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3004/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  gateway:
+    build:
+      context: ./gateway
+      dockerfile: Dockerfile
+    image: physics-gateway:v1
+    container_name: physics-gateway
+
+    environment:
+      PORT: 8080
+
+      AUTH_SERVICE: http://auth-service:3001
+      STUDENT_SERVICE: http://student-service:3002
+      CONTENT_SERVICE: http://content-service:3003
+      PROGRESS_SERVICE: http://progress-service:3004
+
+    depends_on:
+      auth-service:
+        condition: service_healthy
+
+      student-service:
+        condition: service_healthy
+
+      content-service:
+        condition: service_healthy
+
+      progress-service:
+        condition: service_healthy
+
+    networks:
+      - frontend-net
+      - backend
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: physics-frontend:v1
+    container_name: physics-frontend
+
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      GATEWAY_URL: http://gateway:8080
+      SESSION_SECRET: change-this-secret
+
+    ports:
+      - "3000:3000"
+
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+    networks:
+      - frontend-net
+
+    security_opt:
+      - no-new-privileges:true
+
+    cap_drop:
+      - ALL
+
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+networks:
+
+  frontend-net:
+    driver: bridge
+
+  backend:
+    driver: bridge
+    internal: true

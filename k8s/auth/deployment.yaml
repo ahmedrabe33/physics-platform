@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: physics
+
+spec:
+  replicas: 2
+
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+
+  selector:
+    matchLabels:
+      app: auth-service
+
+  template:
+    metadata:
+      labels:
+        app: auth-service
+
+    spec:
+      containers:
+        - name: auth-service
+
+          image: physics-auth:v2
+          imagePullPolicy: Never
+
+          ports:
+            - containerPort: 3001
+
+          env:
+            - name: PORT
+              value: "3001"
+
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: NODE_ENV
+
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: DB_HOST
+
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: DB_PORT
+
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_USER
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_PASSWORD
+
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_DB
+
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: JWT_SECRET
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            periodSeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            periodSeconds: 5
+            failureThreshold: 3
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3001
+            periodSeconds: 10
+            failureThreshold: 3
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 101
+
+            allowPrivilegeEscalation: false
+
+            capabilities:
+              drop:
+                - ALL

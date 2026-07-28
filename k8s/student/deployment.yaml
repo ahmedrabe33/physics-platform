@@ -1,0 +1,126 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: student-service
+  namespace: physics
+
+spec:
+  replicas: 1
+
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: student-service
+
+  template:
+    metadata:
+      labels:
+        app: student-service
+
+    spec:
+      initContainers:
+        - name: fix-upload-permissions
+          image: physics-student:v4
+          imagePullPolicy: Never
+
+          command:
+            - sh
+            - -c
+            - |
+              chown -R 100:101 /app/uploads
+              chmod -R u+rwX,g+rwX /app/uploads
+
+          securityContext:
+            runAsUser: 0
+
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+      containers:
+        - name: student-service
+
+          image: physics-student:v4
+          imagePullPolicy: Never
+
+          ports:
+            - containerPort: 3002
+
+          env:
+            - name: PORT
+              value: "3002"
+
+            - name: DB_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: DB_HOST
+
+            - name: DB_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: physics-config
+                  key: DB_PORT
+
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_USER
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_PASSWORD
+
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_DB
+
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "256Mi"
+
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            periodSeconds: 5
+            failureThreshold: 30
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 3002
+            periodSeconds: 10
+
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 100
+            runAsGroup: 101
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: student-uploads-pvc
