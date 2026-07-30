@@ -1,1 +1,830 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>إنشاء حساب</title><link rel="stylesheet" href="/style.css"></head><body><div class="center-page"><div class="panel signup-panel"><div class="center-text"><div class="brand-mark small-mark">⚛</div><h1>إنشاء حساب طالب</h1><p class="muted">اختر صفك وارفع إثبات الدفع لإرسال طلب التفعيل.</p></div><% if(error){ %><div class="alert error"><%= error %></div><% } %><form method="POST" action="/signup" enctype="multipart/form-data"><div class="form-grid"><div><label>اسم المستخدم</label><input name="username" required></div><div><label>البريد الإلكتروني</label><input type="email" name="email" required></div></div><label>كلمة المرور</label><input type="password" name="password" required><label>الصف الدراسي</label><select name="grade" required><option value="second">الصف الثاني الثانوي</option><option value="third">الصف الثالث الثانوي</option></select><div class="payment-box"><span>رقم التحويل</span><strong>01501600960</strong><p>بعد التحويل ارفع Screenshot واضح لإثبات الدفع.</p></div><label>إثبات الدفع</label><input type="file" name="paymentProof" accept="image/*" required><button class="btn primary full">إرسال طلب التسجيل</button></form><p class="center-text muted">لديك حساب؟ <a href="/">تسجيل الدخول</a></p></div></div></body></html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title>Physics | إنشاء حساب</title>
+
+  <link
+    rel="stylesheet"
+    href="/style.css"
+  >
+
+  <style>
+
+    .signup-page {
+      min-height: 100vh;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 32px 18px;
+
+      position: relative;
+      overflow: hidden;
+    }
+
+
+    .signup-page::before {
+      content: "";
+
+      position: absolute;
+
+      width: 420px;
+      height: 420px;
+
+      border-radius: 50%;
+
+      background:
+        rgba(99,102,241,0.18);
+
+      filter: blur(95px);
+
+      top: -170px;
+      right: -100px;
+
+      pointer-events: none;
+    }
+
+
+    .signup-page::after {
+      content: "";
+
+      position: absolute;
+
+      width: 380px;
+      height: 380px;
+
+      border-radius: 50%;
+
+      background:
+        rgba(34,197,94,0.12);
+
+      filter: blur(95px);
+
+      bottom: -160px;
+      left: -100px;
+
+      pointer-events: none;
+    }
+
+
+    .signup-container {
+      width: 100%;
+      max-width: 620px;
+
+      position: relative;
+      z-index: 2;
+    }
+
+
+    .signup-card {
+      padding: 34px;
+
+      border-radius: 28px;
+
+      background:
+        rgba(24,34,53,0.9);
+
+      border:
+        1px solid
+        rgba(255,255,255,0.08);
+
+      box-shadow:
+        0 30px 75px
+        rgba(0,0,0,0.4);
+
+      backdrop-filter: blur(16px);
+    }
+
+
+    .signup-header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+
+    .signup-logo {
+      width: 72px;
+      height: 72px;
+
+      margin: 0 auto 18px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 22px;
+
+      font-size: 36px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #6366f1,
+          #8b5cf6
+        );
+
+      box-shadow:
+        0 18px 45px
+        rgba(99,102,241,0.35);
+    }
+
+
+    .signup-header h1 {
+      margin: 0 0 10px;
+
+      font-size: 30px;
+      font-weight: 800;
+    }
+
+
+    .signup-header p {
+      margin: 0;
+
+      color: #94a3b8;
+
+      font-size: 14px;
+      line-height: 1.8;
+    }
+
+
+    .signup-form {
+      display: grid;
+      gap: 18px;
+    }
+
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0,1fr));
+      gap: 16px;
+    }
+
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+
+    .field-group label {
+      color: #e2e8f0;
+
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+
+    .field-group input,
+    .field-group select {
+      width: 100%;
+      height: 52px;
+
+      padding: 0 15px;
+
+      border-radius: 14px;
+
+      border:
+        1px solid
+        rgba(255,255,255,0.08);
+
+      background:
+        rgba(15,23,42,0.84);
+
+      color: white;
+
+      font-size: 15px;
+
+      outline: none;
+
+      transition:
+        border-color .2s,
+        box-shadow .2s,
+        transform .2s;
+    }
+
+
+    .field-group input:focus,
+    .field-group select:focus {
+      border-color: #6366f1;
+
+      box-shadow:
+        0 0 0 4px
+        rgba(99,102,241,0.12);
+
+      transform: translateY(-1px);
+    }
+
+
+    .payment-box {
+      padding: 20px;
+
+      border-radius: 18px;
+
+      border:
+        1px solid
+        rgba(34,197,94,0.25);
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(22,163,74,0.12),
+          rgba(5,150,105,0.08)
+        );
+
+      text-align: center;
+    }
+
+
+    .payment-box span {
+      display: block;
+
+      margin-bottom: 8px;
+
+      color: #94a3b8;
+
+      font-size: 13px;
+    }
+
+
+    .payment-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      padding: 10px 16px;
+
+      border-radius: 13px;
+
+      background:
+        rgba(255,255,255,0.07);
+
+      color: #f8fafc;
+
+      font-size: 23px;
+      font-weight: 900;
+
+      letter-spacing: 1px;
+
+      direction: ltr;
+    }
+
+
+    .payment-box p {
+      margin: 12px 0 0;
+
+      color: #94a3b8;
+
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+
+    .file-upload {
+      position: relative;
+    }
+
+
+    .file-upload input[type="file"] {
+      position: absolute;
+
+      width: 1px;
+      height: 1px;
+
+      opacity: 0;
+
+      pointer-events: none;
+    }
+
+
+    .file-upload-label {
+      min-height: 62px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+
+      padding: 12px 14px;
+
+      border-radius: 16px;
+
+      border:
+        1px dashed
+        rgba(99,102,241,0.5);
+
+      background:
+        rgba(99,102,241,0.08);
+
+      cursor: pointer;
+
+      transition:
+        border-color .2s,
+        background .2s,
+        transform .2s;
+    }
+
+
+    .file-upload-label:hover {
+      border-color: #818cf8;
+
+      background:
+        rgba(99,102,241,0.14);
+
+      transform: translateY(-1px);
+    }
+
+
+    .file-upload-info {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+
+      min-width: 0;
+    }
+
+
+    .file-upload-icon {
+      width: 40px;
+      height: 40px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      border-radius: 12px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #6366f1,
+          #8b5cf6
+        );
+
+      font-size: 20px;
+    }
+
+
+    .file-upload-text {
+      min-width: 0;
+    }
+
+
+    .file-upload-text strong {
+      display: block;
+
+      margin-bottom: 4px;
+
+      color: #f8fafc;
+
+      font-size: 14px;
+    }
+
+
+    .file-name {
+      display: block;
+
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+
+      color: #94a3b8;
+
+      font-size: 12px;
+    }
+
+
+    .choose-file-button {
+      flex-shrink: 0;
+
+      padding: 10px 14px;
+
+      border-radius: 12px;
+
+      background:
+        rgba(255,255,255,0.09);
+
+      color: #e2e8f0;
+
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+
+    .submit-button {
+      width: 100%;
+      min-height: 56px;
+
+      border: none;
+      border-radius: 16px;
+
+      cursor: pointer;
+
+      background:
+        linear-gradient(
+          135deg,
+          #6366f1,
+          #8b5cf6
+        );
+
+      color: white;
+
+      font-size: 16px;
+      font-weight: 800;
+
+      box-shadow:
+        0 15px 38px
+        rgba(99,102,241,0.35);
+
+      transition:
+        transform .2s,
+        box-shadow .2s;
+    }
+
+
+    .submit-button:hover {
+      transform: translateY(-2px);
+
+      box-shadow:
+        0 20px 45px
+        rgba(99,102,241,0.45);
+    }
+
+
+    .signup-error {
+      margin-bottom: 20px;
+
+      padding: 13px 15px;
+
+      border-radius: 13px;
+
+      background:
+        rgba(239,68,68,0.12);
+
+      border:
+        1px solid
+        rgba(239,68,68,0.25);
+
+      color: #fecaca;
+
+      text-align: center;
+
+      font-size: 14px;
+    }
+
+
+    .login-link {
+      margin: 22px 0 0;
+
+      text-align: center;
+
+      color: #94a3b8;
+
+      font-size: 14px;
+    }
+
+
+    .login-link a {
+      color: #a5b4fc;
+      font-weight: 800;
+    }
+
+
+    @media (max-width: 650px) {
+
+      .signup-page {
+        align-items: flex-start;
+        padding: 22px 14px;
+      }
+
+
+      .signup-card {
+        padding: 25px 18px;
+        border-radius: 22px;
+      }
+
+
+      .signup-logo {
+        width: 64px;
+        height: 64px;
+
+        border-radius: 19px;
+
+        font-size: 31px;
+      }
+
+
+      .signup-header h1 {
+        font-size: 25px;
+      }
+
+
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+
+
+      .file-upload-label {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+
+      .choose-file-button {
+        width: 100%;
+        text-align: center;
+      }
+
+
+      .payment-number {
+        font-size: 20px;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+<main class="signup-page">
+
+
+  <div class="signup-container">
+
+
+    <section class="signup-card">
+
+
+      <header class="signup-header">
+
+        <div class="signup-logo">
+          ⚛
+        </div>
+
+        <h1>
+          إنشاء حساب طالب
+        </h1>
+
+        <p>
+          اختر صفك وارفع إثبات الدفع لإرسال طلب التفعيل.
+        </p>
+
+      </header>
+
+
+      <% if(error){ %>
+
+        <div class="signup-error">
+          <%= error %>
+        </div>
+
+      <% } %>
+
+
+      <form
+        class="signup-form"
+        method="POST"
+        action="/signup"
+        enctype="multipart/form-data"
+      >
+
+
+        <div class="form-grid">
+
+
+          <div class="field-group">
+
+            <label for="username">
+              اسم المستخدم
+            </label>
+
+            <input
+              id="username"
+              name="username"
+              type="text"
+              placeholder="اكتب اسم المستخدم"
+              required
+            >
+
+          </div>
+
+
+          <div class="field-group">
+
+            <label for="email">
+              البريد الإلكتروني
+            </label>
+
+            <input
+              id="email"
+              name="email"
+              type="email"
+              placeholder="example@email.com"
+              required
+            >
+
+          </div>
+
+
+        </div>
+
+
+        <div class="field-group">
+
+          <label for="password">
+            كلمة المرور
+          </label>
+
+          <input
+            id="password"
+            name="password"
+            type="password"
+            placeholder="اكتب كلمة مرور قوية"
+            required
+          >
+
+        </div>
+
+
+        <div class="field-group">
+
+          <label for="grade">
+            الصف الدراسي
+          </label>
+
+          <select
+            id="grade"
+            name="grade"
+            required
+          >
+
+            <option value="second">
+              الصف الثاني الثانوي
+            </option>
+
+            <option value="third">
+              الصف الثالث الثانوي
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <section class="payment-box">
+
+          <span>
+            رقم التحويل
+          </span>
+
+          <strong class="payment-number">
+            📱 01501600960
+          </strong>
+
+          <p>
+            بعد التحويل ارفع Screenshot واضح لإثبات الدفع.
+          </p>
+
+        </section>
+
+
+        <div class="field-group">
+
+          <label for="paymentProof">
+            إثبات الدفع
+          </label>
+
+
+          <div class="file-upload">
+
+            <input
+              id="paymentProof"
+              name="paymentProof"
+              type="file"
+              accept="image/*"
+              required
+              onchange="showFileName(this)"
+            >
+
+
+            <label
+              class="file-upload-label"
+              for="paymentProof"
+            >
+
+
+              <span class="file-upload-info">
+
+                <span class="file-upload-icon">
+                  📎
+                </span>
+
+
+                <span class="file-upload-text">
+
+                  <strong>
+                    ارفع صورة إثبات الدفع
+                  </strong>
+
+                  <span
+                    class="file-name"
+                    id="fileName"
+                  >
+                    لم يتم اختيار ملف
+                  </span>
+
+                </span>
+
+              </span>
+
+
+              <span class="choose-file-button">
+                اختيار صورة
+              </span>
+
+
+            </label>
+
+          </div>
+
+        </div>
+
+
+        <button
+          class="submit-button"
+          type="submit"
+        >
+          إرسال طلب التسجيل
+        </button>
+
+
+      </form>
+
+
+      <p class="login-link">
+
+        لديك حساب؟
+
+        <a href="/">
+          تسجيل الدخول
+        </a>
+
+      </p>
+
+
+    </section>
+
+
+  </div>
+
+
+</main>
+
+
+<script>
+
+  function showFileName(input) {
+
+    const fileName =
+      document.getElementById("fileName");
+
+
+    if (
+      input.files &&
+      input.files.length > 0
+    ) {
+
+      fileName.textContent =
+        input.files[0].name;
+
+    } else {
+
+      fileName.textContent =
+        "لم يتم اختيار ملف";
+
+    }
+
+  }
+
+</script>
+
+
+</body>
+
+</html>

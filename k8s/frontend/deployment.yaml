@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: physics-frontend:v3
+          image: physics-frontend:v10
           imagePullPolicy: Never
 
           ports:

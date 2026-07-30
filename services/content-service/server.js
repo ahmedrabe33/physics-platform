@@ -3,14 +3,16 @@ const cors = require("cors");
 const { Pool } = require("pg");
 
 const app = express();
+
 const PORT = process.env.PORT || 3003;
 
 app.use(cors());
 app.use(express.json());
 
-// ============================
+
+// ======================================================
 // PostgreSQL
-// ============================
+// ======================================================
 
 const pool = new Pool({
   host: process.env.DB_HOST || "postgres",
@@ -24,6 +26,67 @@ pool.on("error", (error) => {
   console.error("Unexpected PostgreSQL error:", error);
 });
 
+
+// ======================================================
+// Mappers
+// ======================================================
+
+function mapExercise(row) {
+  return {
+    id: row.id,
+    lessonId: row.lesson_id,
+    question: row.question,
+    correctAnswer: row.correct_answer,
+    exerciseOrder: row.exercise_order,
+    order: row.exercise_order,
+  };
+}
+
+function mapTopic(row) {
+  return {
+    id: row.id,
+    lessonId: row.lesson_id,
+    title: row.title,
+    description: row.description,
+    videoUrl: row.video_url,
+    topicOrder: row.topic_order,
+    order: row.topic_order,
+    createdAt: row.created_at,
+  };
+}
+
+function mapLesson(row, exercises = [], topics = []) {
+  return {
+    id: row.id,
+    chapterId: row.chapter_id,
+    title: row.title,
+    description: row.description,
+    videoUrl: row.video_url,
+    lessonOrder: row.lesson_order,
+    order: row.lesson_order,
+    createdAt: row.created_at,
+    topics: topics.map(mapTopic),
+    exercises: exercises.map(mapExercise),
+  };
+}
+
+function mapChapter(row, lessons = []) {
+  return {
+    id: row.id,
+    grade: row.grade,
+    title: row.title,
+    chapterOrder: row.chapter_order,
+    order: row.chapter_order,
+    createdAt: row.created_at,
+    lessons,
+  };
+}
+
+
+// ======================================================
+// Helpers
+// ======================================================
+
 async function waitForDatabase() {
   while (true) {
     try {
@@ -32,393 +95,595 @@ async function waitForDatabase() {
       return;
     } catch (error) {
       console.log("Waiting for PostgreSQL...");
-      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, 3000);
+      });
     }
   }
 }
 
-// ============================
-// Helpers
-// ============================
 
-function mapExercise(exercise) {
-  return {
-    id: exercise.id,
-    lessonId: exercise.lesson_id,
-    question: exercise.question,
-    correctAnswer: exercise.correct_answer,
-    exerciseOrder: exercise.exercise_order,
-  };
-}
-
-function mapLesson(lesson, exercises = []) {
-  return {
-    id: lesson.id,
-    chapterId: lesson.chapter_id,
-    title: lesson.title,
-    description: lesson.description,
-    videoUrl: lesson.video_url,
-    lessonOrder: lesson.lesson_order,
-    exercises,
-  };
-}
-
-function mapChapter(chapter, lessons = []) {
-  return {
-    id: chapter.id,
-    grade: chapter.grade,
-    title: chapter.title,
-    chapterOrder: chapter.chapter_order,
-    lessons,
-  };
-}
-
-async function getChapterWithLessons(chapter) {
-  const lessonsResult = await pool.query(
-    `
-    SELECT *
-    FROM lessons
-    WHERE chapter_id = $1
-    ORDER BY lesson_order, id
-    `,
-    [chapter.id]
-  );
-
-  const lessons = [];
-
-  for (const lesson of lessonsResult.rows) {
-    const exercisesResult = await pool.query(
-      `
-      SELECT *
-      FROM exercises
-      WHERE lesson_id = $1
-      ORDER BY exercise_order, id
-      `,
-      [lesson.id]
-    );
-
-    lessons.push(
-      mapLesson(
-        lesson,
-        exercisesResult.rows.map(mapExercise)
-      )
-    );
-  }
-
-  return mapChapter(chapter, lessons);
-}
-
-// ============================
-// Health
-// ============================
-
-app.get("/health", async (req, res) => {
-  try {
-    await pool.query("SELECT 1");
-
-    res.json({
-      service: "content-service",
-      status: "healthy",
-      database: "connected",
-    });
-  } catch (error) {
-    console.error("Health error:", error);
-
-    res.status(503).json({
-      service: "content-service",
-      status: "unhealthy",
-      database: "disconnected",
-    });
-  }
-});
-
-// ============================
-// Get ALL content
-// Frontend expects:
-// {
-//   second: { chapters: [] },
-//   third:  { chapters: [] }
-// }
-// ============================
-
-app.get("/content", async (req, res) => {
-  try {
-    const content = {
-      second: {
-        chapters: [],
-      },
-      third: {
-        chapters: [],
-      },
-    };
-
-    for (const grade of ["second", "third"]) {
-      const chaptersResult = await pool.query(
+async function getLessonDetails(lessonRow) {
+  const [topicsResult, exercisesResult] =
+    await Promise.all([
+      pool.query(
         `
         SELECT *
-        FROM chapters
-        WHERE grade = $1
-        ORDER BY chapter_order, id
+        FROM lesson_topics
+        WHERE lesson_id = $1
+        ORDER BY topic_order, id
         `,
-        [grade]
-      );
+        [lessonRow.id]
+      ),
 
-      for (const chapter of chaptersResult.rows) {
-        const mappedChapter = await getChapterWithLessons(chapter);
+      pool.query(
+        `
+        SELECT *
+        FROM exercises
+        WHERE lesson_id = $1
+        ORDER BY exercise_order, id
+        `,
+        [lessonRow.id]
+      ),
+    ]);
 
-        content[grade].chapters.push(mappedChapter);
-      }
-    }
+  return mapLesson(
+    lessonRow,
+    exercisesResult.rows,
+    topicsResult.rows
+  );
+}
 
-    res.json(content);
-  } catch (error) {
-    console.error("Get all content error:", error);
 
-    res.status(500).json({
-      message: "Internal server error",
-    });
-  }
-});
-
-// ============================
-// Get content by grade
-// ============================
-
-app.get("/content/:grade", async (req, res) => {
-  try {
-    const grade = req.params.grade;
-
-    if (!["second", "third"].includes(grade)) {
-      return res.status(400).json({
-        message: "Invalid grade",
-      });
-    }
-
-    const chaptersResult = await pool.query(
+async function getChapterWithLessons(chapterRow) {
+  const lessonsResult =
+    await pool.query(
       `
       SELECT *
-      FROM chapters
-      WHERE grade = $1
-      ORDER BY chapter_order, id
+      FROM lessons
+      WHERE chapter_id = $1
+      ORDER BY lesson_order, id
       `,
-      [grade]
+      [chapterRow.id]
     );
 
-    const chapters = [];
+  const lessons =
+    await Promise.all(
+      lessonsResult.rows.map(
+        (lesson) =>
+          getLessonDetails(lesson)
+      )
+    );
 
-    for (const chapter of chaptersResult.rows) {
-      chapters.push(
-        await getChapterWithLessons(chapter)
-      );
-    }
+  return mapChapter(
+    chapterRow,
+    lessons
+  );
+}
 
-    res.json({
-      grade,
-      chapters,
-    });
-  } catch (error) {
-    console.error("Get grade content error:", error);
 
-    res.status(500).json({
-      message: "Internal server error",
-    });
-  }
-});
+async function validateGrade(grade) {
+  return (
+    grade === "second" ||
+    grade === "third"
+  );
+}
 
-// ============================
-// Add chapter
-// ============================
 
-app.post("/content/:grade/chapters", async (req, res) => {
-  try {
-    const grade = req.params.grade;
-    const {
-      title,
-      chapterOrder = 1,
-    } = req.body;
-
-    if (!["second", "third"].includes(grade)) {
-      return res.status(400).json({
-        message: "Invalid grade",
-      });
-    }
-
-    if (!title) {
-      return res.status(400).json({
-        message: "Chapter title is required",
-      });
-    }
-
-    const result = await pool.query(
+async function lessonBelongsToGrade(
+  lessonId,
+  grade
+) {
+  const result =
+    await pool.query(
       `
-      INSERT INTO chapters
-        (
-          grade,
-          title,
-          chapter_order
-        )
-      VALUES
-        ($1, $2, $3)
-
-      RETURNING *
+      SELECT l.id
+      FROM lessons l
+      JOIN chapters c
+        ON c.id = l.chapter_id
+      WHERE l.id = $1
+      AND c.grade = $2
       `,
       [
+        lessonId,
         grade,
-        title,
-        chapterOrder,
       ]
     );
 
-    res.status(201).json(
-      mapChapter(result.rows[0])
-    );
-  } catch (error) {
-    console.error("Create chapter error:", error);
+  return result.rows.length > 0;
+}
 
-    res.status(500).json({
-      message: "Internal server error",
-    });
-  }
-});
 
-// ============================
-// Edit chapter
-// ============================
+// ======================================================
+// Health
+// ======================================================
 
-app.put(
-  "/content/:grade/chapters/:chapterId",
+app.get(
+  "/health",
+
   async (req, res) => {
     try {
+      await pool.query("SELECT 1");
+
+      res.json({
+        service: "content-service",
+        status: "healthy",
+        database: "connected",
+      });
+    } catch (error) {
+      res.status(503).json({
+        service: "content-service",
+        status: "unhealthy",
+      });
+    }
+  }
+);
+
+
+// ======================================================
+// Get all content
+// ======================================================
+
+app.get(
+  "/content",
+
+  async (req, res) => {
+    try {
+      const chaptersResult =
+        await pool.query(
+          `
+          SELECT *
+          FROM chapters
+          ORDER BY grade, chapter_order, id
+          `
+        );
+
+      const response = {
+        second: {
+          chapters: [],
+        },
+
+        third: {
+          chapters: [],
+        },
+      };
+
+      for (
+        const chapter
+        of chaptersResult.rows
+      ) {
+        if (!response[chapter.grade]) {
+          continue;
+        }
+
+        const mappedChapter =
+          await getChapterWithLessons(
+            chapter
+          );
+
+        response[
+          chapter.grade
+        ].chapters.push(
+          mappedChapter
+        );
+      }
+
+      res.json(response);
+    } catch (error) {
+      console.error(
+        "Get content error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+// ======================================================
+// Get content by grade
+// ======================================================
+
+app.get(
+  "/content/:grade",
+
+  async (req, res) => {
+    try {
+      const {
+        grade,
+      } = req.params;
+
+      if (
+        !(await validateGrade(grade))
+      ) {
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid grade",
+          });
+      }
+
+      const chaptersResult =
+        await pool.query(
+          `
+          SELECT *
+          FROM chapters
+          WHERE grade = $1
+          ORDER BY chapter_order, id
+          `,
+          [grade]
+        );
+
+      const chapters =
+        await Promise.all(
+          chaptersResult.rows.map(
+            (chapter) =>
+              getChapterWithLessons(
+                chapter
+              )
+          )
+        );
+
+      res.json({
+        grade,
+        chapters,
+      });
+    } catch (error) {
+      console.error(
+        "Get grade content error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+// ======================================================
+// Chapter CRUD
+// ======================================================
+
+app.post(
+  "/content/:grade/chapters",
+
+  async (req, res) => {
+    try {
+      const {
+        grade,
+      } = req.params;
+
       const {
         title,
         chapterOrder,
       } = req.body;
 
-      const result = await pool.query(
-        `
-        UPDATE chapters
-
-        SET
-          title = COALESCE($1, title),
-          chapter_order = COALESCE($2, chapter_order)
-
-        WHERE id = $3
-          AND grade = $4
-
-        RETURNING *
-        `,
-        [
-          title || null,
-          chapterOrder ?? null,
-          req.params.chapterId,
-          req.params.grade,
-        ]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message: "Chapter not found",
-        });
+      if (
+        !(await validateGrade(grade))
+      ) {
+        return res
+          .status(400)
+          .json({
+            message:
+              "Invalid grade",
+          });
       }
 
-      res.json(
-        mapChapter(result.rows[0])
-      );
+      if (!title) {
+        return res
+          .status(400)
+          .json({
+            message:
+              "Chapter title is required",
+          });
+      }
+
+      let finalOrder =
+        chapterOrder;
+
+      if (
+        finalOrder === undefined ||
+        finalOrder === null ||
+        finalOrder === ""
+      ) {
+        const orderResult =
+          await pool.query(
+            `
+            SELECT
+              COALESCE(
+                MAX(chapter_order),
+                0
+              ) + 1
+              AS next_order
+            FROM chapters
+            WHERE grade = $1
+            `,
+            [grade]
+          );
+
+        finalOrder =
+          orderResult.rows[0]
+            .next_order;
+      }
+
+      const result =
+        await pool.query(
+          `
+          INSERT INTO chapters
+          (
+            grade,
+            title,
+            chapter_order
+          )
+
+          VALUES
+          (
+            $1,
+            $2,
+            $3
+          )
+
+          RETURNING *
+          `,
+          [
+            grade,
+            title,
+            finalOrder,
+          ]
+        );
+
+      res.status(201).json({
+        message:
+          "Chapter created",
+
+        chapter:
+          mapChapter(
+            result.rows[0],
+            []
+          ),
+      });
     } catch (error) {
-      console.error("Update chapter error:", error);
+      console.error(
+        "Create chapter error:",
+        error
+      );
 
       res.status(500).json({
-        message: "Internal server error",
+        message:
+          "Internal server error",
       });
     }
   }
 );
 
-// ============================
-// Delete chapter
-// ============================
 
-app.delete(
+app.put(
   "/content/:grade/chapters/:chapterId",
-  async (req, res) => {
-    try {
-      const result = await pool.query(
-        `
-        DELETE FROM chapters
 
-        WHERE id = $1
-          AND grade = $2
-
-        RETURNING id
-        `,
-        [
-          req.params.chapterId,
-          req.params.grade,
-        ]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message: "Chapter not found",
-        });
-      }
-
-      res.json({
-        message: "Chapter deleted",
-      });
-    } catch (error) {
-      console.error("Delete chapter error:", error);
-
-      res.status(500).json({
-        message: "Internal server error",
-      });
-    }
-  }
-);
-
-// ============================
-// Add lesson
-// ============================
-
-app.post(
-  "/content/:grade/chapters/:chapterId/lessons",
   async (req, res) => {
     try {
       const {
+        grade,
+        chapterId,
+      } = req.params;
+
+      const {
         title,
-        description = "",
-        videoUrl = "",
-        lessonOrder = 1,
+        chapterOrder,
+      } = req.body;
+
+      const result =
+        await pool.query(
+          `
+          UPDATE chapters
+
+          SET
+            title =
+              COALESCE(
+                $1,
+                title
+              ),
+
+            chapter_order =
+              COALESCE(
+                $2,
+                chapter_order
+              )
+
+          WHERE id = $3
+          AND grade = $4
+
+          RETURNING *
+          `,
+          [
+            title ?? null,
+            chapterOrder ?? null,
+            chapterId,
+            grade,
+          ]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Chapter not found",
+          });
+      }
+
+      res.json({
+        message:
+          "Chapter updated",
+
+        chapter:
+          mapChapter(
+            result.rows[0],
+            []
+          ),
+      });
+    } catch (error) {
+      console.error(
+        "Update chapter error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+app.delete(
+  "/content/:grade/chapters/:chapterId",
+
+  async (req, res) => {
+    try {
+      const result =
+        await pool.query(
+          `
+          DELETE FROM chapters
+          WHERE id = $1
+          AND grade = $2
+          RETURNING id
+          `,
+          [
+            req.params.chapterId,
+            req.params.grade,
+          ]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Chapter not found",
+          });
+      }
+
+      res.json({
+        message:
+          "Chapter deleted",
+      });
+    } catch (error) {
+      console.error(
+        "Delete chapter error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+// ======================================================
+// Lesson CRUD
+// ======================================================
+
+app.post(
+  "/content/:grade/chapters/:chapterId/lessons",
+
+  async (req, res) => {
+    try {
+      const {
+        grade,
+        chapterId,
+      } = req.params;
+
+      const {
+        title,
+        description,
+        videoUrl,
+        lessonOrder,
       } = req.body;
 
       if (!title) {
-        return res.status(400).json({
-          message: "Lesson title is required",
-        });
+        return res
+          .status(400)
+          .json({
+            message:
+              "Lesson title is required",
+          });
       }
 
-      const chapterResult = await pool.query(
-        `
-        SELECT id
-        FROM chapters
-        WHERE id = $1
+      const chapterResult =
+        await pool.query(
+          `
+          SELECT id
+          FROM chapters
+          WHERE id = $1
           AND grade = $2
-        `,
-        [
-          req.params.chapterId,
-          req.params.grade,
-        ]
-      );
+          `,
+          [
+            chapterId,
+            grade,
+          ]
+        );
 
-      if (chapterResult.rows.length === 0) {
-        return res.status(404).json({
-          message: "Chapter not found",
-        });
+      if (
+        chapterResult.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Chapter not found",
+          });
       }
 
-      const result = await pool.query(
-        `
-        INSERT INTO lessons
+      let finalOrder =
+        lessonOrder;
+
+      if (
+        finalOrder === undefined ||
+        finalOrder === null ||
+        finalOrder === ""
+      ) {
+        const orderResult =
+          await pool.query(
+            `
+            SELECT
+              COALESCE(
+                MAX(lesson_order),
+                0
+              ) + 1
+              AS next_order
+            FROM lessons
+            WHERE chapter_id = $1
+            `,
+            [chapterId]
+          );
+
+        finalOrder =
+          orderResult.rows[0]
+            .next_order;
+      }
+
+      const result =
+        await pool.query(
+          `
+          INSERT INTO lessons
           (
             chapter_id,
             title,
@@ -427,106 +692,127 @@ app.post(
             lesson_order
           )
 
-        VALUES
-          ($1, $2, $3, $4, $5)
+          VALUES
+          (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5
+          )
 
-        RETURNING *
-        `,
-        [
-          req.params.chapterId,
-          title,
-          description,
-          videoUrl,
-          lessonOrder,
-        ]
-      );
+          RETURNING *
+          `,
+          [
+            chapterId,
+            title,
+            description || null,
+            videoUrl || null,
+            finalOrder,
+          ]
+        );
 
-      res.status(201).json(
-        mapLesson(result.rows[0])
-      );
+      res.status(201).json({
+        message:
+          "Lesson created",
+
+        lesson:
+          mapLesson(
+            result.rows[0]
+          ),
+      });
     } catch (error) {
-      console.error("Create lesson error:", error);
+      console.error(
+        "Create lesson error:",
+        error
+      );
 
       res.status(500).json({
-        message: "Internal server error",
+        message:
+          "Internal server error",
       });
     }
   }
 );
 
-// ============================
-// Get single lesson
-// ============================
 
 app.get(
   "/content/:grade/lessons/:lessonId",
+
   async (req, res) => {
     try {
-      const lessonResult = await pool.query(
-        `
-        SELECT
-          l.*,
-          c.grade
+      const {
+        grade,
+        lessonId,
+      } = req.params;
 
-        FROM lessons l
+      const lessonResult =
+        await pool.query(
+          `
+          SELECT
+            l.*,
+            c.grade
 
-        JOIN chapters c
-          ON c.id = l.chapter_id
+          FROM lessons l
 
-        WHERE l.id = $1
+          JOIN chapters c
+            ON c.id =
+               l.chapter_id
+
+          WHERE l.id = $1
           AND c.grade = $2
-        `,
-        [
-          req.params.lessonId,
-          req.params.grade,
-        ]
-      );
+          `,
+          [
+            lessonId,
+            grade,
+          ]
+        );
 
-      if (lessonResult.rows.length === 0) {
-        return res.status(404).json({
-          message: "Lesson not found",
-        });
+      if (
+        lessonResult.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
       }
 
-      const exercisesResult = await pool.query(
-        `
-        SELECT *
-        FROM exercises
-
-        WHERE lesson_id = $1
-
-        ORDER BY exercise_order, id
-        `,
-        [req.params.lessonId]
-      );
-
-      const lesson = mapLesson(
-        lessonResult.rows[0],
-        exercisesResult.rows.map(mapExercise)
-      );
+      const lesson =
+        await getLessonDetails(
+          lessonResult.rows[0]
+        );
 
       res.json({
         ...lesson,
-        grade: lessonResult.rows[0].grade,
+        grade,
       });
     } catch (error) {
-      console.error("Get lesson error:", error);
+      console.error(
+        "Get lesson error:",
+        error
+      );
 
       res.status(500).json({
-        message: "Internal server error",
+        message:
+          "Internal server error",
       });
     }
   }
 );
 
-// ============================
-// Edit lesson
-// ============================
 
 app.put(
   "/content/:grade/lessons/:lessonId",
+
   async (req, res) => {
     try {
+      const {
+        grade,
+        lessonId,
+      } = req.params;
+
       const {
         title,
         description,
@@ -534,144 +820,524 @@ app.put(
         lessonOrder,
       } = req.body;
 
-      const result = await pool.query(
-        `
-        UPDATE lessons l
+      const valid =
+        await lessonBelongsToGrade(
+          lessonId,
+          grade
+        );
 
-        SET
-          title = COALESCE($1, l.title),
-          description = COALESCE($2, l.description),
-          video_url = COALESCE($3, l.video_url),
-          lesson_order = COALESCE($4, l.lesson_order)
-
-        FROM chapters c
-
-        WHERE l.id = $5
-          AND c.id = l.chapter_id
-          AND c.grade = $6
-
-        RETURNING l.*
-        `,
-        [
-          title || null,
-          description ?? null,
-          videoUrl ?? null,
-          lessonOrder ?? null,
-          req.params.lessonId,
-          req.params.grade,
-        ]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message: "Lesson not found",
-        });
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
       }
 
-      res.json(
-        mapLesson(result.rows[0])
-      );
+      const result =
+        await pool.query(
+          `
+          UPDATE lessons
+
+          SET
+            title =
+              COALESCE(
+                $1,
+                title
+              ),
+
+            description =
+              $2,
+
+            video_url =
+              $3,
+
+            lesson_order =
+              COALESCE(
+                $4,
+                lesson_order
+              )
+
+          WHERE id = $5
+
+          RETURNING *
+          `,
+          [
+            title ?? null,
+            description ?? null,
+            videoUrl ?? null,
+            lessonOrder ?? null,
+            lessonId,
+          ]
+        );
+
+      const lesson =
+        await getLessonDetails(
+          result.rows[0]
+        );
+
+      res.json({
+        message:
+          "Lesson updated",
+
+        lesson,
+      });
     } catch (error) {
-      console.error("Update lesson error:", error);
+      console.error(
+        "Update lesson error:",
+        error
+      );
 
       res.status(500).json({
-        message: "Internal server error",
+        message:
+          "Internal server error",
       });
     }
   }
 );
 
-// ============================
-// Delete lesson
-// ============================
 
 app.delete(
   "/content/:grade/lessons/:lessonId",
+
   async (req, res) => {
     try {
-      const result = await pool.query(
+      const valid =
+        await lessonBelongsToGrade(
+          req.params.lessonId,
+          req.params.grade
+        );
+
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
+      }
+
+      await pool.query(
         `
-        DELETE FROM lessons l
-        USING chapters c
-
-        WHERE l.id = $1
-          AND c.id = l.chapter_id
-          AND c.grade = $2
-
-        RETURNING l.id
+        DELETE FROM lessons
+        WHERE id = $1
         `,
         [
           req.params.lessonId,
-          req.params.grade,
         ]
       );
 
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message: "Lesson not found",
-        });
-      }
-
       res.json({
-        message: "Lesson deleted",
+        message:
+          "Lesson deleted",
       });
     } catch (error) {
-      console.error("Delete lesson error:", error);
+      console.error(
+        "Delete lesson error:",
+        error
+      );
 
       res.status(500).json({
-        message: "Internal server error",
+        message:
+          "Internal server error",
       });
     }
   }
 );
 
-// ============================
-// Add exercise
-// ============================
+
+// ======================================================
+// Topic CRUD
+// ======================================================
 
 app.post(
-  "/content/:grade/lessons/:lessonId/exercises",
+  "/content/:grade/lessons/:lessonId/topics",
+
   async (req, res) => {
     try {
       const {
-        question,
-        correctAnswer,
-        exerciseOrder = 1,
+        grade,
+        lessonId,
+      } = req.params;
+
+      const {
+        title,
+        description,
+        videoUrl,
+        topicOrder,
       } = req.body;
 
-      if (!question || !correctAnswer) {
-        return res.status(400).json({
-          message: "Question and correct answer are required",
-        });
+      if (!title) {
+        return res
+          .status(400)
+          .json({
+            message:
+              "Topic title is required",
+          });
       }
 
-      const lessonResult = await pool.query(
-        `
-        SELECT l.id
+      const valid =
+        await lessonBelongsToGrade(
+          lessonId,
+          grade
+        );
 
-        FROM lessons l
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
+      }
 
-        JOIN chapters c
-          ON c.id = l.chapter_id
+      let finalOrder =
+        topicOrder;
 
-        WHERE l.id = $1
-          AND c.grade = $2
-        `,
-        [
-          req.params.lessonId,
-          req.params.grade,
-        ]
+      if (
+        finalOrder === undefined ||
+        finalOrder === null ||
+        finalOrder === ""
+      ) {
+        const orderResult =
+          await pool.query(
+            `
+            SELECT
+              COALESCE(
+                MAX(topic_order),
+                0
+              ) + 1
+              AS next_order
+            FROM lesson_topics
+            WHERE lesson_id = $1
+            `,
+            [
+              lessonId,
+            ]
+          );
+
+        finalOrder =
+          orderResult.rows[0]
+            .next_order;
+      }
+
+      const result =
+        await pool.query(
+          `
+          INSERT INTO lesson_topics
+          (
+            lesson_id,
+            title,
+            description,
+            video_url,
+            topic_order
+          )
+
+          VALUES
+          (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5
+          )
+
+          RETURNING *
+          `,
+          [
+            lessonId,
+            title,
+            description || null,
+            videoUrl || null,
+            finalOrder,
+          ]
+        );
+
+      res.status(201).json({
+        message:
+          "Topic created",
+
+        topic:
+          mapTopic(
+            result.rows[0]
+          ),
+      });
+    } catch (error) {
+      console.error(
+        "Create topic error:",
+        error
       );
 
-      if (lessonResult.rows.length === 0) {
-        return res.status(404).json({
-          message: "Lesson not found",
-        });
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+app.put(
+  "/content/:grade/lessons/:lessonId/topics/:topicId",
+
+  async (req, res) => {
+    try {
+      const {
+        grade,
+        lessonId,
+        topicId,
+      } = req.params;
+
+      const {
+        title,
+        description,
+        videoUrl,
+        topicOrder,
+      } = req.body;
+
+      const valid =
+        await lessonBelongsToGrade(
+          lessonId,
+          grade
+        );
+
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
       }
 
-      const result = await pool.query(
-        `
-        INSERT INTO exercises
+      const result =
+        await pool.query(
+          `
+          UPDATE lesson_topics
+
+          SET
+            title =
+              COALESCE(
+                $1,
+                title
+              ),
+
+            description =
+              $2,
+
+            video_url =
+              $3,
+
+            topic_order =
+              COALESCE(
+                $4,
+                topic_order
+              )
+
+          WHERE id = $5
+          AND lesson_id = $6
+
+          RETURNING *
+          `,
+          [
+            title ?? null,
+            description ?? null,
+            videoUrl ?? null,
+            topicOrder ?? null,
+            topicId,
+            lessonId,
+          ]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Topic not found",
+          });
+      }
+
+      res.json({
+        message:
+          "Topic updated",
+
+        topic:
+          mapTopic(
+            result.rows[0]
+          ),
+      });
+    } catch (error) {
+      console.error(
+        "Update topic error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+app.delete(
+  "/content/:grade/lessons/:lessonId/topics/:topicId",
+
+  async (req, res) => {
+    try {
+      const {
+        grade,
+        lessonId,
+        topicId,
+      } = req.params;
+
+      const valid =
+        await lessonBelongsToGrade(
+          lessonId,
+          grade
+        );
+
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          DELETE FROM lesson_topics
+
+          WHERE id = $1
+          AND lesson_id = $2
+
+          RETURNING id
+          `,
+          [
+            topicId,
+            lessonId,
+          ]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Topic not found",
+          });
+      }
+
+      res.json({
+        message:
+          "Topic deleted",
+      });
+    } catch (error) {
+      console.error(
+        "Delete topic error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+// ======================================================
+// Exercise CRUD
+// ======================================================
+
+app.post(
+  "/content/:grade/lessons/:lessonId/exercises",
+
+  async (req, res) => {
+    try {
+      const {
+        grade,
+        lessonId,
+      } = req.params;
+
+      const {
+        question,
+        correctAnswer,
+        exerciseOrder,
+      } = req.body;
+
+      if (
+        !question ||
+        !correctAnswer
+      ) {
+        return res
+          .status(400)
+          .json({
+            message:
+              "Question and correctAnswer are required",
+          });
+      }
+
+      const valid =
+        await lessonBelongsToGrade(
+          lessonId,
+          grade
+        );
+
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
+      }
+
+      let finalOrder =
+        exerciseOrder;
+
+      if (
+        finalOrder === undefined ||
+        finalOrder === null ||
+        finalOrder === ""
+      ) {
+        const orderResult =
+          await pool.query(
+            `
+            SELECT
+              COALESCE(
+                MAX(exercise_order),
+                0
+              ) + 1
+              AS next_order
+            FROM exercises
+            WHERE lesson_id = $1
+            `,
+            [
+              lessonId,
+            ]
+          );
+
+        finalOrder =
+          orderResult.rows[0]
+            .next_order;
+      }
+
+      const result =
+        await pool.query(
+          `
+          INSERT INTO exercises
           (
             lesson_id,
             question,
@@ -679,154 +1345,248 @@ app.post(
             exercise_order
           )
 
-        VALUES
-          ($1, $2, $3, $4)
+          VALUES
+          (
+            $1,
+            $2,
+            $3,
+            $4
+          )
 
-        RETURNING *
-        `,
-        [
-          req.params.lessonId,
-          question,
-          correctAnswer,
-          exerciseOrder,
-        ]
-      );
+          RETURNING *
+          `,
+          [
+            lessonId,
+            question,
+            correctAnswer,
+            finalOrder,
+          ]
+        );
 
-      res.status(201).json(
-        mapExercise(result.rows[0])
-      );
+      res.status(201).json({
+        message:
+          "Exercise created",
+
+        exercise:
+          mapExercise(
+            result.rows[0]
+          ),
+      });
     } catch (error) {
-      console.error("Create exercise error:", error);
+      console.error(
+        "Create exercise error:",
+        error
+      );
 
       res.status(500).json({
-        message: "Internal server error",
+        message:
+          "Internal server error",
       });
     }
   }
 );
 
-// ============================
-// Edit exercise
-// ============================
 
 app.put(
   "/content/:grade/lessons/:lessonId/exercises/:exerciseId",
+
   async (req, res) => {
     try {
+      const {
+        grade,
+        lessonId,
+        exerciseId,
+      } = req.params;
+
       const {
         question,
         correctAnswer,
         exerciseOrder,
       } = req.body;
 
-      const result = await pool.query(
-        `
-        UPDATE exercises e
+      const valid =
+        await lessonBelongsToGrade(
+          lessonId,
+          grade
+        );
 
-        SET
-          question = COALESCE($1, e.question),
-          correct_answer = COALESCE($2, e.correct_answer),
-          exercise_order = COALESCE($3, e.exercise_order)
-
-        FROM lessons l, chapters c
-
-        WHERE e.id = $4
-          AND e.lesson_id = $5
-          AND l.id = e.lesson_id
-          AND c.id = l.chapter_id
-          AND c.grade = $6
-
-        RETURNING e.*
-        `,
-        [
-          question || null,
-          correctAnswer || null,
-          exerciseOrder ?? null,
-          req.params.exerciseId,
-          req.params.lessonId,
-          req.params.grade,
-        ]
-      );
-
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message: "Exercise not found",
-        });
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
       }
 
-      res.json(
-        mapExercise(result.rows[0])
-      );
-    } catch (error) {
-      console.error("Update exercise error:", error);
+      const result =
+        await pool.query(
+          `
+          UPDATE exercises
 
-      res.status(500).json({
-        message: "Internal server error",
-      });
-    }
-  }
-);
+          SET
+            question =
+              COALESCE(
+                $1,
+                question
+              ),
 
-// ============================
-// Delete exercise
-// ============================
+            correct_answer =
+              COALESCE(
+                $2,
+                correct_answer
+              ),
 
-app.delete(
-  "/content/:grade/lessons/:lessonId/exercises/:exerciseId",
-  async (req, res) => {
-    try {
-      const result = await pool.query(
-        `
-        DELETE FROM exercises e
-        USING lessons l, chapters c
+            exercise_order =
+              COALESCE(
+                $3,
+                exercise_order
+              )
 
-        WHERE e.id = $1
-          AND e.lesson_id = $2
-          AND l.id = e.lesson_id
-          AND c.id = l.chapter_id
-          AND c.grade = $3
+          WHERE id = $4
+          AND lesson_id = $5
 
-        RETURNING e.id
-        `,
-        [
-          req.params.exerciseId,
-          req.params.lessonId,
-          req.params.grade,
-        ]
-      );
+          RETURNING *
+          `,
+          [
+            question ?? null,
+            correctAnswer ?? null,
+            exerciseOrder ?? null,
+            exerciseId,
+            lessonId,
+          ]
+        );
 
-      if (result.rows.length === 0) {
-        return res.status(404).json({
-          message: "Exercise not found",
-        });
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Exercise not found",
+          });
       }
 
       res.json({
-        message: "Exercise deleted",
+        message:
+          "Exercise updated",
+
+        exercise:
+          mapExercise(
+            result.rows[0]
+          ),
       });
     } catch (error) {
-      console.error("Delete exercise error:", error);
+      console.error(
+        "Update exercise error:",
+        error
+      );
 
       res.status(500).json({
-        message: "Internal server error",
+        message:
+          "Internal server error",
       });
     }
   }
 );
 
-// ============================
+
+app.delete(
+  "/content/:grade/lessons/:lessonId/exercises/:exerciseId",
+
+  async (req, res) => {
+    try {
+      const {
+        grade,
+        lessonId,
+        exerciseId,
+      } = req.params;
+
+      const valid =
+        await lessonBelongsToGrade(
+          lessonId,
+          grade
+        );
+
+      if (!valid) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Lesson not found",
+          });
+      }
+
+      const result =
+        await pool.query(
+          `
+          DELETE FROM exercises
+
+          WHERE id = $1
+          AND lesson_id = $2
+
+          RETURNING id
+          `,
+          [
+            exerciseId,
+            lessonId,
+          ]
+        );
+
+      if (
+        result.rows.length === 0
+      ) {
+        return res
+          .status(404)
+          .json({
+            message:
+              "Exercise not found",
+          });
+      }
+
+      res.json({
+        message:
+          "Exercise deleted",
+      });
+    } catch (error) {
+      console.error(
+        "Delete exercise error:",
+        error
+      );
+
+      res.status(500).json({
+        message:
+          "Internal server error",
+      });
+    }
+  }
+);
+
+
+// ======================================================
 // Start
-// ============================
+// ======================================================
 
 async function start() {
   try {
     await waitForDatabase();
 
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`content-service running on port ${PORT}`);
-    });
+    app.listen(
+      PORT,
+      "0.0.0.0",
+      () => {
+        console.log(
+          `content-service running on port ${PORT}`
+        );
+      }
+    );
   } catch (error) {
-    console.error("Startup failed:", error);
+    console.error(
+      "Startup failed:",
+      error
+    );
+
     process.exit(1);
   }
 }

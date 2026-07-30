@@ -1,1 +1,1190 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>إدارة المحتوى</title><link rel="stylesheet" href="/style.css"></head><body><nav class="topbar"><a class="logo" href="/admin"><span>⚛</span> physics Admin</a><div class="nav-actions"><a href="/admin">👥 الطلاب</a><form method="POST" action="/logout"><button class="btn ghost small">خروج</button></form></div></nav><main class="container"><header class="page-head"><div><span class="eyebrow">Content Management</span><h1>إدارة المحتوى</h1><p class="muted">إضافة وتعديل وحذف الفصول والدروس والتدريبات بدون IDs.</p></div></header><section class="panel"><div class="section-head"><div><span class="eyebrow">إضافة جديد</span><h2>فصل دراسي</h2></div></div><form class="inline-form" method="POST" action="/admin/content/chapter"><select name="grade"><option value="second">الصف الثاني الثانوي</option><option value="third">الصف الثالث الثانوي</option></select><input name="title" placeholder="اسم الفصل" required><button class="btn primary">+ إضافة الفصل</button></form></section><% ["second","third"].forEach(grade=>{ %><section class="grade-admin"><div class="grade-title"><div class="grade-icon">🎓</div><div><span class="eyebrow">Grade</span><h2><%= grade==="second"?"الصف الثاني الثانوي":"الصف الثالث الثانوي" %></h2></div></div><% content[grade].chapters.forEach(chapter=>{ %><article class="panel chapter-admin"><div class="admin-title-row"><div><span class="eyebrow">الفصل <%= chapter.order %></span><h2><%= chapter.title %></h2></div><form method="POST" action="/admin/content/chapter/<%= grade %>/<%= chapter.id %>/delete" onsubmit="return confirm('حذف الفصل بكل محتواه؟')"><button class="btn danger small">🗑 حذف</button></form></div><details class="edit-box"><summary>✏️ تعديل اسم الفصل</summary><form class="inline-form" method="POST" action="/admin/content/chapter/<%= grade %>/<%= chapter.id %>/edit"><input name="title" value="<%= chapter.title %>" required><button class="btn secondary">حفظ</button></form></details><div class="subsection"><h3>+ إضافة درس</h3><form method="POST" action="/admin/content/lesson"><input type="hidden" name="grade" value="<%= grade %>"><input type="hidden" name="chapterId" value="<%= chapter.id %>"><input name="title" placeholder="اسم الدرس" required><textarea name="description" placeholder="وصف الدرس"></textarea><input name="videoUrl" placeholder="رابط الفيديو"><button class="btn primary">إضافة الدرس</button></form></div><% chapter.lessons.forEach(lesson=>{ %><div class="lesson-admin"><div class="admin-title-row"><div><span class="lesson-index"><%= lesson.order %></span><strong><%= lesson.title %></strong></div><form method="POST" action="/admin/content/lesson/<%= grade %>/<%= lesson.id %>/delete" onsubmit="return confirm('حذف الدرس؟')"><button class="btn danger small">حذف</button></form></div><details class="edit-box"><summary>✏️ تعديل الدرس</summary><form method="POST" action="/admin/content/lesson/<%= grade %>/<%= lesson.id %>/edit"><input name="title" value="<%= lesson.title %>" required><textarea name="description"><%= lesson.description %></textarea><input name="videoUrl" value="<%= lesson.videoUrl %>"><button class="btn secondary">حفظ</button></form></details><div class="exercise-admin-list"><h4>التدريبات</h4><% lesson.exercises.forEach(ex=>{ %><div class="exercise-admin-card"><strong>س<%= ex.order %>. <%= ex.question %></strong><p>الإجابة: <span class="answer-chip"><%= ex.correctAnswer %></span></p><details class="edit-box"><summary>تعديل</summary><form method="POST" action="/admin/content/exercise/<%= grade %>/<%= lesson.id %>/<%= ex.id %>/edit"><textarea name="question" required><%= ex.question %></textarea><input name="correctAnswer" value="<%= ex.correctAnswer %>" required><button class="btn secondary small">حفظ</button></form></details><form method="POST" action="/admin/content/exercise/<%= grade %>/<%= lesson.id %>/<%= ex.id %>/delete" onsubmit="return confirm('حذف السؤال؟')"><button class="btn danger small">حذف السؤال</button></form></div><% }) %><form class="exercise-add" method="POST" action="/admin/content/exercise"><input type="hidden" name="grade" value="<%= grade %>"><input type="hidden" name="lessonId" value="<%= lesson.id %>"><textarea name="question" placeholder="سؤال جديد" required></textarea><input name="correctAnswer" placeholder="الإجابة الصحيحة" required><button class="btn primary">+ إضافة تدريب</button></form></div></div><% }) %></article><% }) %></section><% }) %></main></body></html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  >
+
+  <title>
+    إدارة المحتوى
+  </title>
+
+  <link
+    rel="stylesheet"
+    href="/style.css"
+  >
+
+  <style>
+
+    .content-page {
+      padding-top: 28px;
+      padding-bottom: 50px;
+    }
+
+
+    .add-chapter-panel {
+      padding: 24px;
+      margin-bottom: 30px;
+    }
+
+
+    .content-form {
+      display: grid;
+      gap: 14px;
+    }
+
+
+    .content-form textarea {
+      min-height: 110px;
+      resize: vertical;
+    }
+
+
+    .grade-admin {
+      margin-top: 34px;
+    }
+
+
+    .grade-title {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+
+      margin-bottom: 18px;
+    }
+
+
+    .grade-icon {
+      width: 50px;
+      height: 50px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      border-radius: 16px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #6366f1,
+          #8b5cf6
+        );
+
+      font-size: 24px;
+    }
+
+
+    .grade-title h2 {
+      margin: 4px 0 0;
+    }
+
+
+    .chapter-details {
+      margin-bottom: 22px;
+
+      overflow: hidden;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius: 20px;
+
+      background:
+        rgba(24,34,53,.85);
+
+      box-shadow:
+        0 18px 45px
+        rgba(0,0,0,.28);
+    }
+
+
+    .chapter-details > summary {
+      list-style: none;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 15px;
+
+      padding: 22px;
+
+      cursor: pointer;
+
+      transition:
+        background .2s;
+    }
+
+
+    .chapter-details > summary::-webkit-details-marker {
+      display: none;
+    }
+
+
+    .chapter-details > summary:hover {
+      background:
+        rgba(99,102,241,.10);
+    }
+
+
+    .chapter-details[open] > summary {
+      background:
+        rgba(99,102,241,.12);
+
+      border-bottom:
+        1px solid
+        var(--border);
+    }
+
+
+    .chapter-summary-main {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+    }
+
+
+    .chapter-order {
+      width: 38px;
+      height: 38px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      border-radius: 12px;
+
+      background:
+        rgba(99,102,241,.18);
+
+      color:
+        #c7d2fe;
+
+      font-weight: 800;
+    }
+
+
+    .chapter-summary-main h3 {
+      margin: 0 0 5px;
+    }
+
+
+    .summary-meta {
+      color:
+        var(--muted);
+
+      font-size: 14px;
+    }
+
+
+    .summary-arrow {
+      color:
+        #a5b4fc;
+
+      font-size: 19px;
+    }
+
+
+    .chapter-body {
+      padding: 22px;
+    }
+
+
+    .subsection {
+      padding: 20px;
+
+      margin-bottom: 20px;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius: 18px;
+
+      background:
+        rgba(15,23,42,.65);
+    }
+
+
+    .subsection h3,
+    .subsection h4 {
+      margin-top: 0;
+    }
+
+
+    .lesson-details {
+      margin-bottom: 16px;
+
+      overflow: hidden;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius: 17px;
+
+      background:
+        rgba(15,23,42,.82);
+    }
+
+
+    .lesson-details > summary {
+      list-style: none;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+
+      padding: 18px;
+
+      cursor: pointer;
+
+      transition:
+        background .2s;
+    }
+
+
+    .lesson-details > summary::-webkit-details-marker {
+      display: none;
+    }
+
+
+    .lesson-details > summary:hover {
+      background:
+        rgba(99,102,241,.10);
+    }
+
+
+    .lesson-details[open] > summary {
+      background:
+        rgba(99,102,241,.10);
+
+      border-bottom:
+        1px solid
+        var(--border);
+    }
+
+
+    .lesson-summary-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+
+    .lesson-number {
+      width: 34px;
+      height: 34px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      border-radius: 10px;
+
+      background:
+        rgba(139,92,246,.18);
+
+      color:
+        #ddd6fe;
+
+      font-weight: 800;
+    }
+
+
+    .lesson-summary-main strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+
+    .lesson-body {
+      padding: 20px;
+    }
+
+
+    .topic-list,
+    .exercise-list {
+      display: grid;
+      gap: 14px;
+    }
+
+
+    .topic-card,
+    .exercise-card {
+      padding: 17px;
+
+      border:
+        1px solid
+        var(--border);
+
+      border-radius: 15px;
+
+      background:
+        rgba(24,34,53,.72);
+    }
+
+
+    .topic-card h4,
+    .exercise-card h4 {
+      margin:
+        0 0 9px;
+    }
+
+
+    .topic-card p,
+    .exercise-card p {
+      margin:
+        8px 0;
+    }
+
+
+    .topic-actions,
+    .chapter-actions,
+    .lesson-actions {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+
+      margin-top: 14px;
+    }
+
+
+    .empty-message {
+      padding: 18px;
+
+      border:
+        1px dashed
+        var(--border);
+
+      border-radius: 14px;
+
+      color:
+        var(--muted);
+
+      text-align: center;
+    }
+
+
+    .content-badge {
+      display: inline-flex;
+      align-items: center;
+
+      padding:
+        6px 10px;
+
+      border-radius: 999px;
+
+      background:
+        rgba(99,102,241,.14);
+
+      color:
+        #c7d2fe;
+
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+
+    @media(max-width:700px) {
+
+      .content-page {
+        padding-top: 18px;
+      }
+
+
+      .add-chapter-panel,
+      .chapter-body,
+      .lesson-body,
+      .subsection {
+        padding: 16px;
+      }
+
+
+      .chapter-details > summary {
+        padding: 17px;
+      }
+
+
+      .lesson-details > summary {
+        padding: 15px;
+      }
+
+
+      .chapter-summary-main,
+      .lesson-summary-main {
+        align-items: flex-start;
+      }
+
+
+      .summary-meta {
+        line-height: 1.6;
+      }
+
+
+      .content-form .btn {
+        width: 100%;
+      }
+
+
+      .topic-actions,
+      .chapter-actions,
+      .lesson-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+
+      .topic-actions form,
+      .chapter-actions form,
+      .lesson-actions form {
+        width: 100%;
+      }
+
+
+      .topic-actions .btn,
+      .chapter-actions .btn,
+      .lesson-actions .btn {
+        width: 100%;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+<nav class="topbar">
+
+  <a
+    class="logo"
+    href="/admin"
+  >
+    <span>⚛</span>
+    physics Admin
+  </a>
+
+
+  <div class="nav-actions">
+
+    <a href="/admin">
+      👥 الطلاب
+    </a>
+
+
+    <form
+      method="POST"
+      action="/logout"
+    >
+      <button
+        class="btn ghost small"
+      >
+        خروج
+      </button>
+    </form>
+
+  </div>
+
+</nav>
+
+
+<main class="container content-page">
+
+
+<header class="page-head">
+
+  <div>
+
+    <span class="eyebrow">
+      Content Management
+    </span>
+
+    <h1>
+      إدارة المحتوى
+    </h1>
+
+    <p class="muted">
+      أضف الفصول، ثم الدروس داخل كل فصل،
+      ثم أضف عددًا غير محدود من الأجزاء داخل كل درس.
+    </p>
+
+  </div>
+
+</header>
+
+
+<section class="panel add-chapter-panel">
+
+  <h2>
+    + إضافة فصل جديد
+  </h2>
+
+
+  <form
+    class="content-form"
+    method="POST"
+    action="/admin/content/chapter"
+  >
+
+    <select
+      name="grade"
+      required
+    >
+
+      <option value="second">
+        الصف الثاني الثانوي
+      </option>
+
+      <option value="third">
+        الصف الثالث الثانوي
+      </option>
+
+    </select>
+
+
+    <input
+      name="title"
+      placeholder="اسم الفصل"
+      required
+    >
+
+
+    <button
+      class="btn primary"
+      type="submit"
+    >
+      إضافة الفصل
+    </button>
+
+  </form>
+
+</section>
+
+
+<% ["second","third"].forEach(grade => { %>
+
+
+<section class="grade-admin">
+
+
+  <div class="grade-title">
+
+    <div class="grade-icon">
+      🎓
+    </div>
+
+
+    <div>
+
+      <span class="eyebrow">
+        Grade
+      </span>
+
+      <h2>
+        <%= grade === "second"
+          ? "الصف الثاني الثانوي"
+          : "الصف الثالث الثانوي"
+        %>
+      </h2>
+
+    </div>
+
+  </div>
+
+
+  <% if(!content[grade].chapters.length){ %>
+
+    <div class="empty-message">
+      لا توجد فصول مضافة لهذا الصف حتى الآن.
+    </div>
+
+  <% } %>
+
+
+  <% content[grade].chapters.forEach(chapter => {
+
+    const chapterLessons =
+      chapter.lessons || [];
+
+  %>
+
+
+    <details class="chapter-details">
+
+
+      <summary>
+
+        <div class="chapter-summary-main">
+
+          <span class="chapter-order">
+            <%= chapter.chapterOrder || chapter.order || 1 %>
+          </span>
+
+
+          <div>
+
+            <h3>
+              <%= chapter.title %>
+            </h3>
+
+            <div class="summary-meta">
+              <%= chapterLessons.length %>
+              درس داخل الفصل
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <span class="summary-arrow">
+          ▼
+        </span>
+
+      </summary>
+
+
+      <div class="chapter-body">
+
+
+        <!-- Add lesson -->
+
+        <section class="subsection">
+
+          <h3>
+            + إضافة درس داخل الفصل
+          </h3>
+
+
+          <form
+            class="content-form"
+            method="POST"
+            action="/admin/content/lesson"
+          >
+
+            <input
+              type="hidden"
+              name="grade"
+              value="<%= grade %>"
+            >
+
+
+            <input
+              type="hidden"
+              name="chapterId"
+              value="<%= chapter.id %>"
+            >
+
+
+            <input
+              name="title"
+              placeholder="عنوان الدرس"
+              required
+            >
+
+
+            <textarea
+              name="description"
+              placeholder="وصف مختصر للدرس"
+            ></textarea>
+
+
+            <input
+              name="videoUrl"
+              placeholder="رابط الفيديو الرئيسي للدرس — اختياري"
+            >
+
+
+            <button
+              class="btn primary"
+              type="submit"
+            >
+              إضافة الدرس
+            </button>
+
+          </form>
+
+        </section>
+
+
+        <% if(!chapterLessons.length){ %>
+
+          <div class="empty-message">
+            لم تتم إضافة دروس داخل هذا الفصل حتى الآن.
+          </div>
+
+        <% } %>
+
+
+        <% chapterLessons.forEach(lesson => {
+
+          const topics =
+            lesson.topics || [];
+
+          const exercises =
+            lesson.exercises || [];
+
+        %>
+
+
+          <details class="lesson-details">
+
+
+            <summary>
+
+              <div class="lesson-summary-main">
+
+                <span class="lesson-number">
+                  <%= lesson.lessonOrder || lesson.order || 1 %>
+                </span>
+
+
+                <div>
+
+                  <strong>
+                    <%= lesson.title %>
+                  </strong>
+
+                  <div class="summary-meta">
+                    <%= topics.length %>
+                    جزء
+                    —
+                    <%= exercises.length %>
+                    تدريب
+                  </div>
+
+                </div>
+
+              </div>
+
+
+              <span class="summary-arrow">
+                ▼
+              </span>
+
+            </summary>
+
+
+            <div class="lesson-body">
+
+
+              <% if(lesson.description){ %>
+
+                <section class="subsection">
+
+                  <h4>
+                    وصف الدرس
+                  </h4>
+
+                  <p class="muted">
+                    <%= lesson.description %>
+                  </p>
+
+                </section>
+
+              <% } %>
+
+
+              <% if(lesson.videoUrl){ %>
+
+                <section class="subsection">
+
+                  <h4>
+                    الفيديو الرئيسي للدرس
+                  </h4>
+
+                  <a
+                    class="btn primary small"
+                    href="<%= lesson.videoUrl %>"
+                    target="_blank"
+                  >
+                    ▶ فتح الفيديو
+                  </a>
+
+                </section>
+
+              <% } %>
+
+
+              <!-- Add topic -->
+
+              <section class="subsection">
+
+                <h3>
+                  + إضافة جزء جديد داخل الدرس
+                </h3>
+
+
+                <p class="muted">
+                  يمكنك إضافة عدد غير محدود من الأجزاء،
+                  وكل جزء يمكن أن يحتوي على عنوان ووصف وفيديو.
+                </p>
+
+
+                <form
+                  class="content-form"
+                  method="POST"
+                  action="/admin/content/topic"
+                >
+
+                  <input
+                    type="hidden"
+                    name="grade"
+                    value="<%= grade %>"
+                  >
+
+
+                  <input
+                    type="hidden"
+                    name="lessonId"
+                    value="<%= lesson.id %>"
+                  >
+
+
+                  <input
+                    name="title"
+                    placeholder="عنوان الجزء"
+                    required
+                  >
+
+
+                  <textarea
+                    name="description"
+                    placeholder="شرح أو محتوى الجزء"
+                  ></textarea>
+
+
+                  <input
+                    name="videoUrl"
+                    placeholder="رابط فيديو الجزء — اختياري"
+                  >
+
+
+                  <button
+                    class="btn primary"
+                    type="submit"
+                  >
+                    إضافة الجزء
+                  </button>
+
+                </form>
+
+              </section>
+
+
+              <!-- Topics -->
+
+              <section class="subsection">
+
+                <h3>
+                  أجزاء الدرس
+                </h3>
+
+
+                <% if(!topics.length){ %>
+
+                  <div class="empty-message">
+                    لا توجد أجزاء مضافة داخل هذا الدرس.
+                  </div>
+
+                <% } else { %>
+
+
+                  <div class="topic-list">
+
+
+                    <% topics.forEach(topic => { %>
+
+
+                      <article class="topic-card">
+
+                        <span class="content-badge">
+                          الجزء
+                          <%= topic.topicOrder || topic.order || 1 %>
+                        </span>
+
+
+                        <h4>
+                          🎬 <%= topic.title %>
+                        </h4>
+
+
+                        <% if(topic.description){ %>
+
+                          <p class="muted">
+                            <%= topic.description %>
+                          </p>
+
+                        <% } %>
+
+
+                        <div class="topic-actions">
+
+                          <% if(topic.videoUrl){ %>
+
+                            <a
+                              class="btn primary small"
+                              href="<%= topic.videoUrl %>"
+                              target="_blank"
+                            >
+                              ▶ فتح الفيديو
+                            </a>
+
+                          <% } %>
+
+
+                          <form
+                            method="POST"
+                            action="/admin/content/topic/<%= grade %>/<%= lesson.id %>/<%= topic.id %>/delete"
+                          >
+                            <button
+                              class="btn danger small"
+                              type="submit"
+                              onclick="return confirm('هل تريد حذف هذا الجزء؟')"
+                            >
+                              حذف الجزء
+                            </button>
+                          </form>
+
+                        </div>
+
+                      </article>
+
+
+                    <% }) %>
+
+
+                  </div>
+
+                <% } %>
+
+              </section>
+
+
+              <!-- Add exercise -->
+
+              <section class="subsection">
+
+                <h3>
+                  + إضافة تدريب للدرس
+                </h3>
+
+
+                <form
+                  class="content-form"
+                  method="POST"
+                  action="/admin/content/exercise"
+                >
+
+                  <input
+                    type="hidden"
+                    name="grade"
+                    value="<%= grade %>"
+                  >
+
+
+                  <input
+                    type="hidden"
+                    name="lessonId"
+                    value="<%= lesson.id %>"
+                  >
+
+
+                  <textarea
+                    name="question"
+                    placeholder="اكتب السؤال"
+                    required
+                  ></textarea>
+
+
+                  <input
+                    name="correctAnswer"
+                    placeholder="الإجابة الصحيحة"
+                    required
+                  >
+
+
+                  <button
+                    class="btn primary"
+                    type="submit"
+                  >
+                    إضافة التدريب
+                  </button>
+
+                </form>
+
+              </section>
+
+
+              <!-- Exercises -->
+
+              <section class="subsection">
+
+                <h3>
+                  التدريبات
+                </h3>
+
+
+                <% if(!exercises.length){ %>
+
+                  <div class="empty-message">
+                    لا توجد تدريبات داخل هذا الدرس حتى الآن.
+                  </div>
+
+                <% } else { %>
+
+
+                  <div class="exercise-list">
+
+
+                    <% exercises.forEach(ex => { %>
+
+
+                      <article class="exercise-card">
+
+                        <span class="content-badge">
+                          سؤال
+                          <%= ex.exerciseOrder || ex.order || 1 %>
+                        </span>
+
+
+                        <h4>
+                          <%= ex.question %>
+                        </h4>
+
+
+                        <p>
+                          الإجابة الصحيحة:
+                          <strong>
+                            <%= ex.correctAnswer %>
+                          </strong>
+                        </p>
+
+
+                        <form
+                          method="POST"
+                          action="/admin/content/exercise/<%= grade %>/<%= lesson.id %>/<%= ex.id %>/delete"
+                        >
+                          <button
+                            class="btn danger small"
+                            type="submit"
+                            onclick="return confirm('هل تريد حذف هذا التدريب؟')"
+                          >
+                            حذف التدريب
+                          </button>
+                        </form>
+
+                      </article>
+
+
+                    <% }) %>
+
+
+                  </div>
+
+                <% } %>
+
+              </section>
+
+
+              <!-- Delete lesson -->
+
+              <section class="subsection">
+
+                <h3>
+                  إدارة الدرس
+                </h3>
+
+
+                <div class="lesson-actions">
+
+                  <form
+                    method="POST"
+                    action="/admin/content/lesson/<%= grade %>/<%= lesson.id %>/delete"
+                  >
+                    <button
+                      class="btn danger"
+                      type="submit"
+                      onclick="return confirm('هل تريد حذف الدرس وجميع أجزائه وتدريباته؟')"
+                    >
+                      حذف الدرس
+                    </button>
+                  </form>
+
+                </div>
+
+              </section>
+
+
+            </div>
+
+          </details>
+
+
+        <% }) %>
+
+
+        <!-- Delete chapter -->
+
+        <section class="subsection">
+
+          <h3>
+            إدارة الفصل
+          </h3>
+
+
+          <div class="chapter-actions">
+
+            <form
+              method="POST"
+              action="/admin/content/chapter/<%= grade %>/<%= chapter.id %>/delete"
+            >
+              <button
+                class="btn danger"
+                type="submit"
+                onclick="return confirm('هل تريد حذف الفصل وجميع الدروس الموجودة بداخله؟')"
+              >
+                حذف الفصل
+              </button>
+            </form>
+
+          </div>
+
+        </section>
+
+
+      </div>
+
+    </details>
+
+
+  <% }) %>
+
+
+</section>
+
+
+<% }) %>
+
+
+</main>
+
+
+</body>
+
+</html>

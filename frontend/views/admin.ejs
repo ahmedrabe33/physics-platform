@@ -1,1 +1,797 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>لوحة المدرس</title><link rel="stylesheet" href="/style.css"></head><body><nav class="topbar"><a class="logo" href="/admin"><span>⚛</span> physics Admin</a><div class="nav-actions"><a href="/admin/content">📚 إدارة المحتوى</a><form method="POST" action="/logout"><button class="btn ghost small">خروج</button></form></div></nav><main class="container"><header class="page-head"><div><span class="eyebrow">لوحة المدرس</span><h1>أهلاً يا <%= user.username %> 👋</h1><p class="muted">تابع الطلاب والمحتوى من مكان واحد.</p></div><a class="btn primary" href="/admin/content">إدارة المحتوى</a></header><section class="stats-grid admin-stats"><div class="stat-card"><div class="stat-icon">👥</div><div><strong><%= stats.totalStudents %></strong><span>الطلاب</span></div></div><div class="stat-card"><div class="stat-icon">⏳</div><div><strong><%= stats.pendingStudents %></strong><span>بانتظار الموافقة</span></div></div><div class="stat-card"><div class="stat-icon">✅</div><div><strong><%= stats.approvedStudents %></strong><span>فعال</span></div></div><div class="stat-card"><div class="stat-icon">📚</div><div><strong><%= stats.chaptersCount %></strong><span>الفصول</span></div></div><div class="stat-card"><div class="stat-icon">🎬</div><div><strong><%= stats.lessonsCount %></strong><span>الدروس</span></div></div></section><section class="panel"><div class="section-head"><div><span class="eyebrow">الاشتراكات</span><h2>الطلاب</h2></div></div><div class="students-grid"><% students.forEach(student=>{ %><article class="student-card"><div class="student-top"><div class="avatar"><%= student.username.charAt(0).toUpperCase() %></div><div><h3><%= student.username %></h3><p><%= student.email %></p></div><span class="badge <%= student.status %>"><%= student.status %></span></div><div class="student-meta"><span>🎓 <%= student.grade==="second"?"الثاني الثانوي":"الثالث الثانوي" %></span><span>🗓 <%= new Date(student.registeredAt).toLocaleDateString("ar-EG") %></span><% if(student.subscriptionExpiry){ %><span>⏰ <%= new Date(student.subscriptionExpiry).toLocaleDateString("ar-EG") %></span><% } %></div><% if(student.paymentProof){ %><a class="proof-link" href="http://localhost:3002<%= student.paymentProof %>" target="_blank">🧾 عرض إثبات الدفع</a><% } %><div class="card-actions"><% if(student.status==="pending"){ %><form method="POST" action="/admin/approve/<%= student.userId %>"><button class="btn success-btn small">✓ موافقة</button></form><form method="POST" action="/admin/reject/<%= student.userId %>"><button class="btn danger small">رفض</button></form><% } else { %><form method="POST" action="/admin/renew/<%= student.userId %>"><button class="btn primary small">↻ تجديد شهر</button></form><% } %></div></article><% }) %></div></section></main></body></html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+
+  <title>لوحة المدرس</title>
+
+  <link rel="stylesheet" href="/style.css">
+</head>
+
+<body>
+
+<nav class="topbar">
+
+  <a class="logo" href="/admin">
+    <span>⚛</span>
+    physics Admin
+  </a>
+
+  <div class="nav-actions">
+
+    <a href="/admin/content">
+      📚 إدارة المحتوى
+    </a>
+
+    <form method="POST" action="/logout">
+      <button class="btn ghost small">
+        خروج
+      </button>
+    </form>
+
+  </div>
+
+</nav>
+
+
+<main class="container">
+
+
+<header class="page-head">
+
+  <div>
+
+    <span class="eyebrow">
+      لوحة المدرس
+    </span>
+
+    <h1>
+      أهلاً يا <%= user.username %> 👋
+    </h1>
+
+    <p class="muted">
+      تابع الطلاب والمحتوى ونشاط مشاهدة الفيديوهات من مكان واحد.
+    </p>
+
+  </div>
+
+  <a
+    class="btn primary"
+    href="/admin/content"
+  >
+    إدارة المحتوى
+  </a>
+
+</header>
+
+
+<section class="stats-grid admin-stats">
+
+  <div class="stat-card">
+
+    <div class="stat-icon">
+      👥
+    </div>
+
+    <div>
+
+      <strong>
+        <%= stats.totalStudents %>
+      </strong>
+
+      <span>
+        الطلاب
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <div class="stat-card">
+
+    <div class="stat-icon">
+      ⏳
+    </div>
+
+    <div>
+
+      <strong>
+        <%= stats.pendingStudents %>
+      </strong>
+
+      <span>
+        بانتظار الموافقة
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <div class="stat-card">
+
+    <div class="stat-icon">
+      ✅
+    </div>
+
+    <div>
+
+      <strong>
+        <%= stats.approvedStudents %>
+      </strong>
+
+      <span>
+        فعال
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <div class="stat-card">
+
+    <div class="stat-icon">
+      📚
+    </div>
+
+    <div>
+
+      <strong>
+        <%= stats.chaptersCount %>
+      </strong>
+
+      <span>
+        الفصول
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <div class="stat-card">
+
+    <div class="stat-icon">
+      🎬
+    </div>
+
+    <div>
+
+      <strong>
+        <%= stats.lessonsCount %>
+      </strong>
+
+      <span>
+        الدروس
+      </span>
+
+    </div>
+
+  </div>
+
+
+  <div class="stat-card">
+
+    <div class="stat-icon">
+      ▶️
+    </div>
+
+    <div>
+
+      <strong>
+        <%= stats.videoViewsCount || 0 %>
+      </strong>
+
+      <span>
+        فتحات الفيديو
+      </span>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<section class="panel">
+
+  <div class="section-head">
+
+    <div>
+
+      <span class="eyebrow">
+        الاشتراكات
+      </span>
+
+      <h2>
+        الطلاب
+      </h2>
+
+    </div>
+
+  </div>
+
+
+  <div class="students-grid">
+
+    <% students.forEach(student => { %>
+
+      <article class="student-card">
+
+        <div class="student-top">
+
+          <div class="avatar">
+            <%= student.username.charAt(0).toUpperCase() %>
+          </div>
+
+          <div>
+
+            <h3>
+              <%= student.username %>
+            </h3>
+
+            <p>
+              <%= student.email %>
+            </p>
+
+          </div>
+
+          <span class="badge <%= student.status %>">
+            <%= student.status %>
+          </span>
+
+        </div>
+
+
+        <div class="student-meta">
+
+          <span>
+            🎓
+            <%= student.grade === "second"
+              ? "الثاني الثانوي"
+              : "الثالث الثانوي"
+            %>
+          </span>
+
+
+          <span>
+            🗓
+            <%= new Date(
+              student.registeredAt
+            ).toLocaleDateString(
+              "en-GB"
+            ) %>
+          </span>
+
+
+          <% if(student.subscriptionExpiry){ %>
+
+            <span>
+              ⏰
+              <%= new Date(
+                student.subscriptionExpiry
+              ).toLocaleDateString(
+                "en-GB"
+              ) %>
+            </span>
+
+          <% } %>
+
+        </div>
+
+
+        <% if(student.paymentProof){ %>
+
+          <a
+            class="proof-link"
+            href="http://localhost:3002<%= student.paymentProof %>"
+            target="_blank"
+          >
+            🧾 عرض إثبات الدفع
+          </a>
+
+        <% } %>
+
+
+        <div class="card-actions">
+
+          <% if(student.status === "pending"){ %>
+
+            <form
+              method="POST"
+              action="/admin/approve/<%= student.userId %>"
+            >
+              <button class="btn success-btn small">
+                ✓ موافقة
+              </button>
+            </form>
+
+
+            <form
+              method="POST"
+              action="/admin/reject/<%= student.userId %>"
+            >
+              <button class="btn danger small">
+                رفض
+              </button>
+            </form>
+
+          <% } else { %>
+
+            <form
+              method="POST"
+              action="/admin/renew/<%= student.userId %>"
+            >
+              <button class="btn primary small">
+                ↻ تجديد شهر
+              </button>
+            </form>
+
+          <% } %>
+
+        </div>
+
+      </article>
+
+    <% }) %>
+
+  </div>
+
+</section>
+
+
+<!-- ================================================== -->
+<!-- Video Activity -->
+<!-- Hidden until Admin presses button -->
+<!-- ================================================== -->
+
+<section class="panel">
+
+  <div class="section-head">
+
+    <div>
+
+      <span class="eyebrow">
+        Video Activity
+      </span>
+
+      <h2>
+        نشاط الفيديوهات
+      </h2>
+
+      <p class="muted">
+        اضغط على الزر لعرض سجل فتح الطلاب للفيديوهات.
+      </p>
+
+    </div>
+
+
+    <button
+      id="videoActivityButton"
+      class="btn primary"
+      type="button"
+      onclick="toggleVideoActivity()"
+    >
+      🎬 عرض سجل الفيديوهات
+    </button>
+
+  </div>
+
+
+  <div
+    id="videoActivitySection"
+    style="display:none; margin-top:25px;"
+  >
+
+    <div
+      style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:15px;
+        flex-wrap:wrap;
+        margin-bottom:20px;
+      "
+    >
+
+      <div>
+
+        <h3 style="margin:0 0 6px 0;">
+          سجل فتح الفيديوهات
+        </h3>
+
+        <p class="muted" style="margin:0;">
+          إجمالي مرات الفتح:
+          <strong>
+            <%= stats.videoViewsCount || 0 %>
+          </strong>
+        </p>
+
+      </div>
+
+    </div>
+
+
+    <% if(!videoViews || videoViews.length === 0){ %>
+
+      <div
+        style="
+          padding:30px;
+          text-align:center;
+        "
+      >
+
+        <div
+          style="
+            font-size:42px;
+            margin-bottom:10px;
+          "
+        >
+          🎬
+        </div>
+
+        <h3>
+          لا يوجد نشاط حتى الآن
+        </h3>
+
+        <p class="muted">
+          عندما يفتح أحد الطلاب فيديو سيتم تسجيله هنا.
+        </p>
+
+      </div>
+
+    <% } else { %>
+
+
+      <div
+        style="
+          overflow-x:auto;
+          width:100%;
+        "
+      >
+
+        <table
+          style="
+            width:100%;
+            border-collapse:collapse;
+            min-width:980px;
+          "
+        >
+
+          <thead>
+
+            <tr
+              style="
+                border-bottom:2px solid #eee;
+              "
+            >
+
+              <th
+                style="
+                  padding:15px 12px;
+                  text-align:right;
+                  white-space:nowrap;
+                "
+              >
+                الطالب
+              </th>
+
+              <th
+                style="
+                  padding:15px 12px;
+                  text-align:right;
+                  white-space:nowrap;
+                "
+              >
+                الصف
+              </th>
+
+              <th
+                style="
+                  padding:15px 12px;
+                  text-align:right;
+                  white-space:nowrap;
+                "
+              >
+                الفصل
+              </th>
+
+              <th
+                style="
+                  padding:15px 12px;
+                  text-align:right;
+                  white-space:nowrap;
+                "
+              >
+                الدرس
+              </th>
+
+              <th
+                style="
+                  padding:15px 12px;
+                  text-align:right;
+                  white-space:nowrap;
+                "
+              >
+                الموضوع
+              </th>
+
+              <th
+                style="
+                  padding:15px 12px;
+                  text-align:right;
+                  white-space:nowrap;
+                "
+              >
+                التاريخ والوقت
+              </th>
+
+              <th
+                style="
+                  padding:15px 12px;
+                  text-align:right;
+                  white-space:nowrap;
+                "
+              >
+                الفيديو
+              </th>
+
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            <% videoViews.forEach(view => { %>
+
+              <tr
+                style="
+                  border-bottom:1px solid #eee;
+                "
+              >
+
+                <td
+                  style="
+                    padding:16px 12px;
+                    min-width:170px;
+                  "
+                >
+
+                  <strong>
+                    <%= view.username || "-" %>
+                  </strong>
+
+                  <% if(view.email){ %>
+
+                    <div
+                      class="muted"
+                      style="
+                        font-size:13px;
+                        margin-top:4px;
+                      "
+                    >
+                      <%= view.email %>
+                    </div>
+
+                  <% } %>
+
+                </td>
+
+
+                <td
+                  style="
+                    padding:16px 12px;
+                    min-width:110px;
+                  "
+                >
+
+                  <%= view.grade === "second"
+                    ? "الثاني الثانوي"
+                    : view.grade === "third"
+                      ? "الثالث الثانوي"
+                      : "-"
+                  %>
+
+                </td>
+
+
+                <td
+                  style="
+                    padding:16px 12px;
+                    min-width:150px;
+                  "
+                >
+                  <%= view.chapterTitle || "-" %>
+                </td>
+
+
+                <td
+                  style="
+                    padding:16px 12px;
+                    min-width:150px;
+                  "
+                >
+                  <%= view.lessonTitle || "-" %>
+                </td>
+
+
+                <td
+                  style="
+                    padding:16px 12px;
+                    min-width:130px;
+                  "
+                >
+                  <%= view.topicTitle ||
+                    "فيديو الدرس الرئيسي"
+                  %>
+                </td>
+
+
+                <td
+                  style="
+                    padding:16px 12px;
+                    min-width:220px;
+                    white-space:nowrap;
+                  "
+                >
+
+                  <% if(view.openedAt){ %>
+
+                    <div
+                      style="
+                        font-weight:600;
+                        margin-bottom:6px;
+                      "
+                    >
+                      📅
+                      <%= new Date(
+                        view.openedAt
+                      ).toLocaleDateString(
+                        "en-GB",
+                        {
+                          timeZone:
+                            "Africa/Cairo",
+
+                          day:
+                            "2-digit",
+
+                          month:
+                            "2-digit",
+
+                          year:
+                            "numeric"
+                        }
+                      ) %>
+                    </div>
+
+
+                    <div>
+                      🕒
+                      <%= new Date(
+                        view.openedAt
+                      ).toLocaleTimeString(
+                        "en-US",
+                        {
+                          timeZone:
+                            "Africa/Cairo",
+
+                          hour:
+                            "2-digit",
+
+                          minute:
+                            "2-digit",
+
+                          second:
+                            "2-digit",
+
+                          hour12:
+                            true
+                        }
+                      ) %>
+                    </div>
+
+                  <% } else { %>
+
+                    -
+
+                  <% } %>
+
+                </td>
+
+
+                <td
+                  style="
+                    padding:16px 12px;
+                    white-space:nowrap;
+                  "
+                >
+
+                  <% if(view.videoUrl){ %>
+
+                    <a
+                      class="btn primary small"
+                      href="<%= view.videoUrl %>"
+                      target="_blank"
+                    >
+                      ▶ فتح
+                    </a>
+
+                  <% } else { %>
+
+                    <span class="muted">
+                      -
+                    </span>
+
+                  <% } %>
+
+                </td>
+
+              </tr>
+
+            <% }) %>
+
+          </tbody>
+
+        </table>
+
+      </div>
+
+    <% } %>
+
+  </div>
+
+</section>
+
+
+</main>
+
+
+<script>
+
+function toggleVideoActivity() {
+
+  const section =
+    document.getElementById(
+      "videoActivitySection"
+    );
+
+  const button =
+    document.getElementById(
+      "videoActivityButton"
+    );
+
+
+  if (
+    section.style.display === "none" ||
+    section.style.display === ""
+  ) {
+
+    section.style.display =
+      "block";
+
+    button.innerHTML =
+      "▲ إخفاء سجل الفيديوهات";
+
+  } else {
+
+    section.style.display =
+      "none";
+
+    button.innerHTML =
+      "🎬 عرض سجل الفيديوهات";
+
+  }
+
+}
+
+</script>
+
+
+</body>
+
+</html>

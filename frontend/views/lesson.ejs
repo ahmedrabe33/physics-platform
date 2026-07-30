@@ -1,1 +1,1137 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><%= lesson.title %></title><link rel="stylesheet" href="/style.css"></head><body><nav class="topbar"><a class="logo" href="/dashboard"><span>⚛</span> physics</a><a href="/grade/<%= grade %>">← العودة للدروس</a></nav><main class="lesson-layout"><section class="lesson-main"><div class="lesson-heading"><span class="eyebrow">الدرس <%= lesson.order %></span><h1><%= lesson.title %></h1><p><%= lesson.description||'' %></p></div><% if(lesson.videoUrl){ %><div class="video-card"><div class="video-placeholder"><div class="play-icon">▶</div><h3>فيديو الدرس</h3><a class="btn primary" href="<%= lesson.videoUrl %>" target="_blank">فتح الفيديو</a></div></div><% } %><section class="panel"><div class="section-head"><div><span class="eyebrow">تطبيق</span><h2>تدريبات الدرس</h2></div><span class="badge"><%= lesson.exercises.length %> سؤال</span></div><% if(!lesson.exercises.length){ %><p class="muted">لا توجد تدريبات حتى الآن.</p><% } %><% lesson.exercises.forEach(ex=>{ %><div class="exercise-card"><span class="question-number">سؤال <%= ex.order %></span><h3><%= ex.question %></h3><form method="POST" action="/lesson/<%= grade %>/<%= lesson.id %>/exercise/<%= ex.id %>/check"><input name="answer" placeholder="اكتب إجابتك هنا..." required><button class="btn secondary">تحقق من الإجابة</button></form><% if(exerciseResult&&String(exerciseResult.exerciseId)===String(ex.id)){ %><% if(exerciseResult.correct){ %><div class="alert success">✅ إجابة صحيحة، ممتاز!</div><% } else { %><div class="alert error">❌ الإجابة غير صحيحة. الصحيحة: <strong><%= exerciseResult.correctAnswer %></strong></div><% } %><% } %></div><% }) %></section><% if(success){ %><div class="alert success"><%= success %></div><% } %><form method="POST" action="/lesson/<%= grade %>/<%= lesson.id %>/complete"><button class="btn complete full">✓ أنهيت الدرس — فتح الدرس التالي</button></form></section><aside class="lesson-sidebar"><div class="panel sticky-card"><div class="big-icon">🎯</div><h3>هدف الدرس</h3><p class="muted">شاهد الشرح، حل التدريبات، ثم أنهِ الدرس.</p></div></aside></main></body></html>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+
+  <title><%= lesson.title %></title>
+
+  <link
+    rel="stylesheet"
+    href="/style.css"
+  >
+
+  <style>
+
+    .lesson-navbar {
+      min-height: 70px;
+
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      gap: 16px;
+
+      padding: 14px 5%;
+
+      background:
+        rgba(17,24,39,.9);
+
+      border-bottom:
+        1px solid
+        rgba(255,255,255,.08);
+
+      backdrop-filter: blur(14px);
+    }
+
+
+    .lesson-navbar .logo {
+      display: flex;
+      align-items: center;
+
+      gap: 8px;
+
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      min-height: 42px;
+
+      padding: 9px 15px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.1);
+
+      border-radius: 13px;
+
+      background:
+        rgba(255,255,255,.04);
+
+      color: #e2e8f0;
+
+      font-size: 14px;
+      font-weight: 800;
+
+      transition:
+        background .2s,
+        transform .2s;
+    }
+
+
+    .back-link:hover {
+      background:
+        rgba(99,102,241,.12);
+
+      transform:
+        translateY(-1px);
+    }
+
+
+    .lesson-page {
+      width: 92%;
+      max-width: 900px;
+
+      margin: 0 auto;
+
+      padding: 32px 0 60px;
+    }
+
+
+    .lesson-header {
+      margin-bottom: 24px;
+
+      padding: 30px 25px;
+
+      text-align: center;
+
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
+      border-radius: 24px;
+
+      background:
+        linear-gradient(
+          135deg,
+          rgba(99,102,241,.16),
+          rgba(139,92,246,.08)
+        );
+
+      box-shadow:
+        0 22px 55px
+        rgba(0,0,0,.3);
+    }
+
+
+    .lesson-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      margin-bottom: 13px;
+
+      padding: 7px 14px;
+
+      border-radius: 999px;
+
+      background:
+        rgba(99,102,241,.18);
+
+      color: #c7d2fe;
+
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+
+    .lesson-header h1 {
+      margin: 0 0 11px;
+
+      color: #f8fafc;
+
+      font-size: 31px;
+      line-height: 1.5;
+    }
+
+
+    .lesson-header p {
+      max-width: 700px;
+
+      margin: 0 auto;
+
+      color: #94a3b8;
+
+      font-size: 15px;
+      line-height: 1.9;
+    }
+
+
+    .lesson-section {
+      margin-bottom: 22px;
+
+      padding: 24px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
+      border-radius: 22px;
+
+      background:
+        rgba(24,34,53,.88);
+
+      box-shadow:
+        0 20px 48px
+        rgba(0,0,0,.28);
+    }
+
+
+    .lesson-goal {
+      display: flex;
+      align-items: center;
+
+      gap: 15px;
+    }
+
+
+    .goal-icon {
+      width: 52px;
+      height: 52px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      border-radius: 16px;
+
+      background:
+        rgba(34,197,94,.13);
+
+      font-size: 25px;
+    }
+
+
+    .lesson-goal h3 {
+      margin: 0 0 6px;
+
+      font-size: 19px;
+    }
+
+
+    .lesson-goal p {
+      margin: 0;
+
+      color: #94a3b8;
+
+      line-height: 1.8;
+    }
+
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      gap: 14px;
+
+      margin-bottom: 20px;
+    }
+
+
+    .section-heading-text span {
+      display: block;
+
+      margin-bottom: 5px;
+
+      color: #a5b4fc;
+
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+
+    .section-heading-text h2 {
+      margin: 0;
+
+      font-size: 24px;
+    }
+
+
+    .count-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 7px 12px;
+
+      border-radius: 999px;
+
+      background:
+        rgba(99,102,241,.15);
+
+      color: #c7d2fe;
+
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+
+    .topics-list,
+    .exercises-list {
+      display: grid;
+      gap: 17px;
+    }
+
+
+    .topic-item,
+    .exercise-item {
+      padding: 20px;
+
+      border:
+        1px solid
+        rgba(255,255,255,.08);
+
+      border-radius: 18px;
+
+      background:
+        rgba(15,23,42,.8);
+    }
+
+
+    .topic-title-row {
+      display: flex;
+      align-items: flex-start;
+
+      gap: 12px;
+
+      margin-bottom: 13px;
+    }
+
+
+    .topic-order {
+      width: 38px;
+      height: 38px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      border-radius: 12px;
+
+      background:
+        linear-gradient(
+          135deg,
+          #6366f1,
+          #8b5cf6
+        );
+
+      color: white;
+
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+
+    .topic-title-row h3 {
+      margin: 4px 0 0;
+
+      font-size: 19px;
+      line-height: 1.6;
+    }
+
+
+    .topic-description {
+      margin: 0 0 17px;
+
+      color: #94a3b8;
+
+      line-height: 1.9;
+    }
+
+
+    .video-card-new {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      gap: 14px;
+
+      padding: 14px;
+
+      border:
+        1px solid
+        rgba(99,102,241,.2);
+
+      border-radius: 15px;
+
+      background:
+        rgba(99,102,241,.08);
+    }
+
+
+    .video-info {
+      display: flex;
+      align-items: center;
+
+      gap: 10px;
+
+      color: #f8fafc;
+
+      font-weight: 800;
+    }
+
+
+    .video-icon {
+      width: 41px;
+      height: 41px;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      flex-shrink: 0;
+
+      border-radius: 12px;
+
+      background:
+        rgba(99,102,241,.18);
+
+      font-size: 20px;
+    }
+
+
+    .video-button {
+      min-width: 130px;
+
+      padding: 12px 18px;
+
+      border: none;
+      border-radius: 13px;
+
+      cursor: pointer;
+
+      background:
+        linear-gradient(
+          135deg,
+          #6366f1,
+          #8b5cf6
+        );
+
+      color: white;
+
+      font-size: 14px;
+      font-weight: 900;
+
+      box-shadow:
+        0 10px 28px
+        rgba(99,102,241,.28);
+
+      transition:
+        transform .2s,
+        box-shadow .2s;
+    }
+
+
+    .video-button:hover {
+      transform:
+        translateY(-2px);
+
+      box-shadow:
+        0 15px 35px
+        rgba(99,102,241,.38);
+    }
+
+
+    .question-number {
+      display: inline-flex;
+
+      margin-bottom: 11px;
+
+      padding: 6px 11px;
+
+      border-radius: 999px;
+
+      background:
+        rgba(139,92,246,.16);
+
+      color: #ddd6fe;
+
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+
+    .exercise-item h3 {
+      margin: 0 0 17px;
+
+      font-size: 18px;
+      line-height: 1.8;
+    }
+
+
+    .exercise-form {
+      display: grid;
+
+      grid-template-columns:
+        minmax(0,1fr)
+        auto;
+
+      gap: 11px;
+    }
+
+
+    .exercise-form input {
+      min-width: 0;
+      height: 49px;
+    }
+
+
+    .check-button {
+      min-width: 110px;
+
+      border:
+        1px solid
+        rgba(99,102,241,.3);
+
+      border-radius: 13px;
+
+      cursor: pointer;
+
+      background:
+        rgba(99,102,241,.15);
+
+      color: #e0e7ff;
+
+      font-weight: 900;
+    }
+
+
+    .empty-message {
+      padding: 22px;
+
+      border:
+        1px dashed
+        rgba(255,255,255,.12);
+
+      border-radius: 15px;
+
+      color: #94a3b8;
+
+      text-align: center;
+    }
+
+
+    .success-message {
+      margin-bottom: 22px;
+
+      padding: 15px;
+
+      border:
+        1px solid
+        rgba(34,197,94,.27);
+
+      border-radius: 14px;
+
+      background:
+        rgba(34,197,94,.1);
+
+      color: #bbf7d0;
+
+      text-align: center;
+    }
+
+
+    .complete-form {
+      margin-top: 24px;
+    }
+
+
+    .complete-button {
+      width: 100%;
+      min-height: 61px;
+
+      padding: 13px 18px;
+
+      border: none;
+      border-radius: 17px;
+
+      cursor: pointer;
+
+      background:
+        linear-gradient(
+          135deg,
+          #16a34a,
+          #059669
+        );
+
+      color: white;
+
+      font-size: 17px;
+      font-weight: 900;
+
+      box-shadow:
+        0 16px 38px
+        rgba(34,197,94,.28);
+
+      transition:
+        transform .2s,
+        box-shadow .2s;
+    }
+
+
+    .complete-button:hover {
+      transform:
+        translateY(-2px);
+
+      box-shadow:
+        0 21px 45px
+        rgba(34,197,94,.38);
+    }
+
+
+    @media (max-width: 650px) {
+
+      .lesson-navbar {
+        min-height: 62px;
+        padding: 11px 14px;
+      }
+
+
+      .lesson-navbar .logo {
+        font-size: 16px;
+      }
+
+
+      .back-link {
+        min-height: 39px;
+
+        padding: 7px 10px;
+
+        font-size: 12px;
+      }
+
+
+      .lesson-page {
+        width: 94%;
+
+        padding: 19px 0 45px;
+      }
+
+
+      .lesson-header {
+        padding: 23px 16px;
+
+        border-radius: 20px;
+      }
+
+
+      .lesson-header h1 {
+        font-size: 24px;
+      }
+
+
+      .lesson-header p {
+        font-size: 14px;
+      }
+
+
+      .lesson-section {
+        padding: 18px 15px;
+
+        border-radius: 19px;
+      }
+
+
+      .lesson-goal {
+        align-items: flex-start;
+      }
+
+
+      .goal-icon {
+        width: 44px;
+        height: 44px;
+
+        font-size: 21px;
+      }
+
+
+      .section-heading {
+        align-items: flex-start;
+      }
+
+
+      .section-heading-text h2 {
+        font-size: 21px;
+      }
+
+
+      .topic-item,
+      .exercise-item {
+        padding: 16px;
+      }
+
+
+      .topic-title-row h3 {
+        font-size: 17px;
+      }
+
+
+      .video-card-new {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+
+      .video-button {
+        width: 100%;
+      }
+
+
+      .exercise-form {
+        grid-template-columns: 1fr;
+      }
+
+
+      .check-button {
+        min-height: 47px;
+      }
+
+
+      .complete-button {
+        min-height: 57px;
+
+        font-size: 15px;
+        line-height: 1.6;
+      }
+
+    }
+
+  </style>
+
+</head>
+
+
+<body>
+
+
+<nav class="lesson-navbar">
+
+  <a
+    class="logo"
+    href="/dashboard"
+  >
+    <span>⚛</span>
+    physics
+  </a>
+
+
+  <a
+    class="back-link"
+    href="/grade/<%= grade %>"
+  >
+    ← العودة للدروس
+  </a>
+
+</nav>
+
+
+<main class="lesson-page">
+
+
+  <header class="lesson-header">
+
+    <span class="lesson-number">
+      الدرس <%= lesson.order %>
+    </span>
+
+
+    <h1>
+      <%= lesson.title %>
+    </h1>
+
+
+    <% if(lesson.description){ %>
+
+      <p>
+        <%= lesson.description %>
+      </p>
+
+    <% } %>
+
+  </header>
+
+
+  <% if(success){ %>
+
+    <div class="success-message">
+      <%= success %>
+    </div>
+
+  <% } %>
+
+
+  <section class="lesson-section">
+
+    <div class="lesson-goal">
+
+      <div class="goal-icon">
+        🎯
+      </div>
+
+
+      <div>
+
+        <h3>
+          هدف الدرس
+        </h3>
+
+        <p>
+          شاهد أجزاء الدرس، ثم أكمل التدريبات واضغط على إنهاء الدرس.
+        </p>
+
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <% if(lesson.topics && lesson.topics.length){ %>
+
+
+    <section class="lesson-section">
+
+      <div class="section-heading">
+
+        <div class="section-heading-text">
+
+          <span>
+            محتوى الدرس
+          </span>
+
+          <h2>
+            موضوعات الدرس
+          </h2>
+
+        </div>
+
+
+        <span class="count-badge">
+          <%= lesson.topics.length %> جزء
+        </span>
+
+      </div>
+
+
+      <div class="topics-list">
+
+
+        <% lesson.topics.forEach(topic => { %>
+
+
+          <article class="topic-item">
+
+            <div class="topic-title-row">
+
+              <span class="topic-order">
+                <%= topic.order %>
+              </span>
+
+
+              <h3>
+                <%= topic.title %>
+              </h3>
+
+            </div>
+
+
+            <% if(topic.description){ %>
+
+              <p class="topic-description">
+                <%= topic.description %>
+              </p>
+
+            <% } %>
+
+
+            <% if(topic.videoUrl){ %>
+
+              <div class="video-card-new">
+
+                <div class="video-info">
+
+                  <span class="video-icon">
+                    🎬
+                  </span>
+
+                  <span>
+                    فيديو الموضوع
+                  </span>
+
+                </div>
+
+
+                <button
+                  class="video-button"
+                  type="button"
+                  onclick="openVideo(
+                    '<%= topic.videoUrl %>',
+                    '<%= topic.id %>'
+                  )"
+                >
+                  ▶ فتح الفيديو
+                </button>
+
+              </div>
+
+            <% } %>
+
+          </article>
+
+
+        <% }) %>
+
+
+      </div>
+
+    </section>
+
+
+  <% } else if(lesson.videoUrl){ %>
+
+
+    <section class="lesson-section">
+
+      <div class="section-heading">
+
+        <div class="section-heading-text">
+
+          <span>
+            فيديو الدرس
+          </span>
+
+          <h2>
+            شرح الدرس
+          </h2>
+
+        </div>
+
+      </div>
+
+
+      <div class="video-card-new">
+
+        <div class="video-info">
+
+          <span class="video-icon">
+            🎬
+          </span>
+
+          <span>
+            الفيديو الرئيسي للدرس
+          </span>
+
+        </div>
+
+
+        <button
+          class="video-button"
+          type="button"
+          onclick="openVideo(
+            '<%= lesson.videoUrl %>',
+            null
+          )"
+        >
+          ▶ فتح الفيديو
+        </button>
+
+      </div>
+
+    </section>
+
+
+  <% } else { %>
+
+
+    <section class="lesson-section">
+
+      <div class="empty-message">
+        لم تتم إضافة محتوى لهذا الدرس حتى الآن.
+      </div>
+
+    </section>
+
+
+  <% } %>
+
+
+  <section class="lesson-section">
+
+    <div class="section-heading">
+
+      <div class="section-heading-text">
+
+        <span>
+          تطبيق
+        </span>
+
+        <h2>
+          تدريبات الدرس
+        </h2>
+
+      </div>
+
+
+      <span class="count-badge">
+        <%= lesson.exercises ? lesson.exercises.length : 0 %>
+        سؤال
+      </span>
+
+    </div>
+
+
+    <% if(!lesson.exercises || !lesson.exercises.length){ %>
+
+      <div class="empty-message">
+        لا توجد تدريبات لهذا الدرس حتى الآن.
+      </div>
+
+    <% } else { %>
+
+
+      <div class="exercises-list">
+
+
+        <% lesson.exercises.forEach(ex => { %>
+
+
+          <article class="exercise-item">
+
+            <span class="question-number">
+              سؤال <%= ex.order %>
+            </span>
+
+
+            <h3>
+              <%= ex.question %>
+            </h3>
+
+
+            <form
+              class="exercise-form"
+              method="POST"
+              action="/lesson/<%= grade %>/<%= lesson.id %>/exercise/<%= ex.id %>/check"
+            >
+
+              <input
+                name="answer"
+                placeholder="اكتب إجابتك هنا..."
+                required
+              >
+
+
+              <button
+                class="check-button"
+                type="submit"
+              >
+                تحقق
+              </button>
+
+            </form>
+
+          </article>
+
+
+        <% }) %>
+
+
+      </div>
+
+
+    <% } %>
+
+  </section>
+
+
+  <form
+    class="complete-form"
+    method="POST"
+    action="/lesson/<%= grade %>/<%= lesson.id %>/complete"
+  >
+
+    <button
+      class="complete-button"
+      type="submit"
+    >
+      ✓ أنهيت الدرس — العودة إلى قائمة الدروس
+    </button>
+
+  </form>
+
+
+</main>
+
+
+<script>
+
+  async function openVideo(
+    url,
+    topicId
+  ) {
+
+    try {
+
+      await fetch(
+        "/track-video-view",
+        {
+          method: "POST",
+
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+
+          body:
+            JSON.stringify({
+              lessonId:
+                "<%= lesson.id %>",
+
+              topicId:
+                topicId,
+
+              videoUrl:
+                url
+            })
+        }
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Video tracking failed",
+        error
+      );
+
+    }
+
+
+    window.open(
+      url,
+      "_blank",
+      "noopener,noreferrer"
+    );
+
+  }
+
+</script>
+
+
+</body>
+
+</html>

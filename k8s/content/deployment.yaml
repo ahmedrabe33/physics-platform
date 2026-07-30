@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: content-service
-          image: physics-content:v3
+          image: physics-content:v10
           imagePullPolicy: Never
 
           ports:

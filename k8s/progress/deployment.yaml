@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: progress-service
-          image: physics-progress:v2
+          image: physics-progress:v10
           imagePullPolicy: Never
 
           ports:

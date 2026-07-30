@@ -1,0 +1,85 @@
+apiVersion: batch/v1
+kind: Job
+
+metadata:
+  name: postgres-video-views-migration
+  namespace: physics
+
+spec:
+  backoffLimit: 3
+
+  template:
+    metadata:
+      labels:
+        app: postgres-video-views-migration
+
+    spec:
+      restartPolicy: OnFailure
+
+      containers:
+        - name: migration
+          image: postgres:16
+
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+
+              until pg_isready \
+                -h postgres \
+                -p 5432 \
+                -U "$POSTGRES_USER"
+              do
+                sleep 2
+              done
+
+              echo "PostgreSQL is ready."
+
+              psql \
+                -h postgres \
+                -p 5432 \
+                -U "$POSTGRES_USER" \
+                -d "$POSTGRES_DB" \
+                -v ON_ERROR_STOP=1 \
+                -f /migration/002_video_views.sql
+
+              echo "Video views migration completed."
+
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_USER
+
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_DB
+
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: physics-secrets
+                  key: POSTGRES_PASSWORD
+
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
+          volumeMounts:
+            - name: migration
+              mountPath: /migration
+              readOnly: true
+
+      volumes:
+        - name: migration
+          configMap:
+            name: video-views-migration
