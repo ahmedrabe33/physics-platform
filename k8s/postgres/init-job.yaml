@@ -1,8 +1,10 @@
 apiVersion: batch/v1
 kind: Job
+
 metadata:
   name: postgres-init-schema
   namespace: physics
+
 spec:
   backoffLimit: 5
 
@@ -17,14 +19,17 @@ spec:
       containers:
         - name: postgres-init-schema
           image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
 
           command:
             - sh
             - -c
             - |
+              set -e
+
               echo "Waiting for PostgreSQL..."
 
-              until pg_isready \
+              until PGPASSWORD="$POSTGRES_PASSWORD" pg_isready \
                 -h "$DB_HOST" \
                 -p "$DB_PORT" \
                 -U "$POSTGRES_USER" \
@@ -34,11 +39,12 @@ spec:
 
               echo "PostgreSQL is ready"
 
-              psql \
+              PGPASSWORD="$POSTGRES_PASSWORD" psql \
                 -h "$DB_HOST" \
                 -p "$DB_PORT" \
                 -U "$POSTGRES_USER" \
                 -d "$POSTGRES_DB" \
+                -v ON_ERROR_STOP=1 \
                 -f /schema/schema.sql
 
               echo "Database schema initialized successfully"
@@ -77,6 +83,7 @@ spec:
           volumeMounts:
             - name: schema
               mountPath: /schema
+              readOnly: true
 
       volumes:
         - name: schema
