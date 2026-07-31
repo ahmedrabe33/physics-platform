@@ -3,14 +3,12 @@ kind: Service
 metadata:
   name: frontend
   namespace: physics
-
 spec:
+  type: LoadBalancer
   selector:
     app: frontend
-
   ports:
     - name: http
-      port: 3000
+      protocol: TCP
+      port: 80
       targetPort: 3000
-
-  type: ClusterIP
