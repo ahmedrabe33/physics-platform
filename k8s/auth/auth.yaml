@@ -37,8 +37,8 @@ spec:
       
       initContainers:
         - name: fix-permissions
-          image: physics-auth:v1
-          imagePullPolicy: Never
+          image: ahmedrabie222000/physics-auth-service:v10
+          imagePullPolicy: Always
 
           command:
             - sh
@@ -55,8 +55,8 @@ spec:
               mountPath: /app/data
       containers:
         - name: auth-service
-          image: physics-auth:v1
-          imagePullPolicy: Never
+          image: ahmedrabie222000/physics-auth-service:v10
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 3001

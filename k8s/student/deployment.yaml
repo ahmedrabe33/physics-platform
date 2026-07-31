@@ -21,8 +21,8 @@ spec:
     spec:
       initContainers:
         - name: fix-upload-permissions
-          image: physics-student:v4
-          imagePullPolicy: Never
+          image: ahmedrabie222000/physics-student-service:v10
+          imagePullPolicy: Always
 
           command:
             - sh
@@ -40,8 +40,8 @@ spec:
       containers:
         - name: student-service
 
-          image: physics-student:v4
-          imagePullPolicy: Never
+          image: ahmedrabie222000/physics-student-service:v10
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 3002

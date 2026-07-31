@@ -25,8 +25,8 @@ spec:
     spec:
       containers:
         - name: content-service
-          image: physics-content:v10
-          imagePullPolicy: Never
+          image: ahmedrabie222000/physics-content-service:v10
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 3003

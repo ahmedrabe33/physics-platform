@@ -26,8 +26,8 @@ spec:
       containers:
         - name: auth-service
 
-          image: physics-auth:v2
-          imagePullPolicy: Never
+          image: ahmedrabie222000/physics-auth-service:v10
+          imagePullPolicy: Always
 
           ports:
             - containerPort: 3001
