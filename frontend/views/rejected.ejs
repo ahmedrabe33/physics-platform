@@ -1,1 +1,26 @@
-<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><link rel="stylesheet" href="/style.css"><title>Rejected</title></head><body><div class="center-page"><div class="panel narrow center-text"><div class="big-icon">❌</div><h1>تعذر تفعيل الحساب</h1><p class="muted">تم رفض طلب التسجيل. تواصل مع المدرس للمراجعة.</p><a class="btn ghost" href="/">العودة</a></div></div></body></html>
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><link rel="stylesheet" href="/style.css"><title>Rejected</title>
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0d6efd">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Rabie Physics">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+</head><body><div class="center-page"><div class="panel narrow center-text"><div class="big-icon">❌</div><h1>تعذر تفعيل الحساب</h1><p class="muted">تم رفض طلب التسجيل. تواصل مع المدرس للمراجعة.</p><a class="btn ghost" href="/">العودة</a></div></div>
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker
+          .register("/service-worker.js")
+          .then(function (registration) {
+            console.log("Service Worker registered:", registration.scope);
+          })
+          .catch(function (error) {
+            console.error("Service Worker registration failed:", error);
+          });
+      });
+    }
+  </script>
+
+</body></html>
