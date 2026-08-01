@@ -595,6 +595,114 @@
     }
 
 
+
+    /* Embedded video player */
+    .video-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+
+      display: none;
+      align-items: center;
+      justify-content: center;
+
+      padding: 20px;
+
+      background: rgba(2, 6, 23, .88);
+      backdrop-filter: blur(8px);
+    }
+
+    .video-modal.is-open {
+      display: flex;
+    }
+
+    .video-modal-content {
+      width: min(100%, 1000px);
+
+      overflow: hidden;
+
+      border:
+        1px solid
+        rgba(255,255,255,.12);
+
+      border-radius: 20px;
+
+      background: #020617;
+
+      box-shadow:
+        0 30px 80px
+        rgba(0,0,0,.55);
+    }
+
+    .video-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      gap: 14px;
+
+      padding: 13px 16px;
+
+      border-bottom:
+        1px solid
+        rgba(255,255,255,.1);
+
+      background:
+        rgba(15,23,42,.96);
+    }
+
+    .video-modal-title {
+      color: #f8fafc;
+
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .video-modal-close {
+      width: 40px;
+      height: 40px;
+
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      border:
+        1px solid
+        rgba(255,255,255,.12);
+
+      border-radius: 12px;
+
+      cursor: pointer;
+
+      background:
+        rgba(255,255,255,.06);
+
+      color: #fff;
+
+      font-size: 21px;
+      font-weight: 900;
+    }
+
+    .video-frame-wrapper {
+      position: relative;
+
+      width: 100%;
+      padding-top: 56.25%;
+
+      background: #000;
+    }
+
+    .video-frame-wrapper iframe {
+      position: absolute;
+      inset: 0;
+
+      width: 100%;
+      height: 100%;
+
+      border: 0;
+    }
+
+
     @media (max-width: 650px) {
 
       .lesson-navbar {
@@ -1087,7 +1195,158 @@
 </main>
 
 
+
+<div
+  id="videoModal"
+  class="video-modal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="videoModalTitle"
+  onclick="closeVideoModalOnBackdrop(event)"
+>
+  <div class="video-modal-content">
+
+    <div class="video-modal-header">
+
+      <span
+        id="videoModalTitle"
+        class="video-modal-title"
+      >
+        فيديو الدرس
+      </span>
+
+      <button
+        class="video-modal-close"
+        type="button"
+        aria-label="إغلاق الفيديو"
+        onclick="closeVideoModal()"
+      >
+        ×
+      </button>
+
+    </div>
+
+    <div class="video-frame-wrapper">
+
+      <iframe
+        id="lessonVideoFrame"
+        title="فيديو الدرس"
+        src=""
+        allow="autoplay; fullscreen; encrypted-media"
+        allowfullscreen
+      ></iframe>
+
+    </div>
+
+  </div>
+</div>
+
+
 <script>
+
+  function convertToEmbedUrl(url) {
+
+    if (!url) {
+      return "";
+    }
+
+    const cleanUrl = String(url).trim();
+
+    const driveFileMatch =
+      cleanUrl.match(
+        /drive\.google\.com\/file\/d\/([^/?#]+)/
+      );
+
+    if (driveFileMatch) {
+      return (
+        "https://drive.google.com/file/d/" +
+        driveFileMatch[1] +
+        "/preview"
+      );
+    }
+
+    const driveOpenMatch =
+      cleanUrl.match(
+        /drive\.google\.com\/open\?id=([^&#]+)/
+      );
+
+    if (driveOpenMatch) {
+      return (
+        "https://drive.google.com/file/d/" +
+        driveOpenMatch[1] +
+        "/preview"
+      );
+    }
+
+    const driveIdMatch =
+      cleanUrl.match(/[?&]id=([^&#]+)/);
+
+    if (
+      cleanUrl.includes("drive.google.com") &&
+      driveIdMatch
+    ) {
+      return (
+        "https://drive.google.com/file/d/" +
+        driveIdMatch[1] +
+        "/preview"
+      );
+    }
+
+    return cleanUrl;
+  }
+
+
+  function showVideoModal(url) {
+
+    const modal =
+      document.getElementById("videoModal");
+
+    const frame =
+      document.getElementById("lessonVideoFrame");
+
+    frame.src = convertToEmbedUrl(url);
+
+    modal.classList.add("is-open");
+
+    document.body.style.overflow = "hidden";
+  }
+
+
+  function closeVideoModal() {
+
+    const modal =
+      document.getElementById("videoModal");
+
+    const frame =
+      document.getElementById("lessonVideoFrame");
+
+    frame.src = "";
+
+    modal.classList.remove("is-open");
+
+    document.body.style.overflow = "";
+  }
+
+
+  function closeVideoModalOnBackdrop(event) {
+
+    if (event.target.id === "videoModal") {
+      closeVideoModal();
+    }
+  }
+
+
+  document.addEventListener(
+    "keydown",
+    function (event) {
+
+      if (event.key === "Escape") {
+        closeVideoModal();
+      }
+
+    }
+  );
+
 
   async function openVideo(
     url,
@@ -1129,13 +1388,7 @@
 
     }
 
-
-    window.open(
-      url,
-      "_blank",
-      "noopener,noreferrer"
-    );
-
+    showVideoModal(url);
   }
 
 </script>
@@ -1160,3 +1413,4 @@
 </body>
 
 </html>
+ahmedrabie@ahmed:~/project/physics-platform$
