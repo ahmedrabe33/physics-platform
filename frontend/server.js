@@ -479,6 +479,66 @@ app.post(
 );
 
 
+
+// ======================================================
+// Payment proof files
+// ======================================================
+
+app.get(
+  "/uploads/*",
+  requireAdmin,
+
+  async (req, res) => {
+    try {
+      const response = await axios.get(
+        `${GATEWAY}/api/students${req.originalUrl}`,
+        {
+          responseType: "stream",
+          validateStatus: () => true,
+        }
+      );
+
+      if (response.status !== 200) {
+        return res
+          .status(response.status)
+          .send("Payment proof not found");
+      }
+
+      if (response.headers["content-type"]) {
+        res.set(
+          "Content-Type",
+          response.headers["content-type"]
+        );
+      }
+
+      if (response.headers["content-length"]) {
+        res.set(
+          "Content-Length",
+          response.headers["content-length"]
+        );
+      }
+
+      res.set(
+        "Cache-Control",
+        "private, max-age=300"
+      );
+
+      response.data.pipe(res);
+
+    } catch (error) {
+      console.error(
+        "Payment proof error:",
+        error.message
+      );
+
+      res
+        .status(502)
+        .send("Unable to load payment proof");
+    }
+  }
+);
+
+
 // ======================================================
 // Signup
 // ======================================================

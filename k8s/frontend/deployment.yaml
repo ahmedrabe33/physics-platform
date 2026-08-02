@@ -25,7 +25,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: ahmedrabie222000/physics-frontend:v14
+          image: ahmedrabie222000/physics-frontend:v15
           imagePullPolicy: Always
 
           ports:
