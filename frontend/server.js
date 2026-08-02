@@ -485,7 +485,7 @@ app.post(
 // ======================================================
 
 app.get(
-  "/uploads/*",
+  "/uploads/*path",
   requireAdmin,
 
   async (req, res) => {
