@@ -342,6 +342,19 @@
 
           <% } %>
 
+          <form
+            method="POST"
+            action="/admin/delete/<%= student.userId %>"
+            onsubmit="return confirm('هل أنت متأكد من حذف حساب الطالب نهائيًا؟ لا يمكن التراجع عن الحذف.');"
+          >
+            <button
+              class="btn danger small"
+              type="submit"
+            >
+              🗑 حذف الحساب
+            </button>
+          </form>
+
         </div>
 
       </article>

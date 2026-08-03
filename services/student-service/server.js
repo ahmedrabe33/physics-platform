@@ -209,6 +209,90 @@ app.get("/students/:userId", async (req, res) => {
   }
 });
 
+
+app.delete("/students/:userId", async (req, res) => {
+  const userId = Number(req.params.userId);
+
+  if (!Number.isInteger(userId) || userId <= 0) {
+    return res.status(400).json({
+      message: "Invalid user ID",
+    });
+  }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const studentResult = await client.query(
+      `
+      SELECT payment_proof
+      FROM students
+      WHERE user_id = $1
+      FOR UPDATE
+      `,
+      [userId]
+    );
+
+    const userResult = await client.query(
+      `
+      DELETE FROM users
+      WHERE id = $1
+      RETURNING id, username, email
+      `,
+      [userId]
+    );
+
+    if (userResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
+    await client.query("COMMIT");
+
+    const paymentProof =
+      studentResult.rows[0]?.payment_proof;
+
+    if (paymentProof) {
+      const filename = path.basename(paymentProof);
+      const filePath = path.join(UPLOAD_DIR, filename);
+
+      fs.unlink(filePath, (error) => {
+        if (error && error.code !== "ENOENT") {
+          console.error(
+            "Delete payment proof error:",
+            error
+          );
+        }
+      });
+    }
+
+    res.json({
+      message: "Account deleted successfully",
+      user: userResult.rows[0],
+    });
+
+  } catch (error) {
+    await client.query("ROLLBACK");
+
+    console.error(
+      "Delete student account error:",
+      error
+    );
+
+    res.status(500).json({
+      message: "Internal server error",
+    });
+
+  } finally {
+    client.release();
+  }
+});
+
+
 app.post("/students/:userId/approve", async (req, res) => {
   try {
     const result = await pool.query(

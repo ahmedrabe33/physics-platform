@@ -1475,6 +1475,46 @@ app.get(
 // Admin student actions
 // ======================================================
 
+
+app.post(
+  "/admin/delete/:userId",
+
+  requireAdmin,
+
+  async (req, res) => {
+
+    try {
+
+      await axios.delete(
+        `${GATEWAY}/api/students/students/${req.params.userId}`
+      );
+
+
+      res.redirect(
+        "/admin"
+      );
+
+    } catch (error) {
+
+      console.error(
+        "Delete student account error:",
+        error.response?.data ||
+          error.message
+      );
+
+
+      res
+        .status(502)
+        .send(
+          "Cannot delete student account"
+        );
+
+    }
+
+  }
+);
+
+
 app.post(
   "/admin/approve/:userId",
 
