@@ -410,7 +410,7 @@
 
 <!-- ================================================== -->
 <!-- Video Activity -->
-<!-- Hidden until Admin presses button -->
+<!-- Grouped by student -->
 <!-- ================================================== -->
 
 <section class="panel">
@@ -428,7 +428,7 @@
       </h2>
 
       <p class="muted">
-        اضغط على الزر لعرض سجل فتح الطلاب للفيديوهات.
+        سجل مختصر يوضح نشاط كل طالب وعدد مرات فتح الفيديوهات.
       </p>
 
     </div>
@@ -464,12 +464,12 @@
 
       <div>
 
-        <h3 style="margin:0 0 6px 0;">
-          سجل فتح الفيديوهات
+        <h3 style="margin:0 0 6px;">
+          ملخص نشاط الطلاب
         </h3>
 
         <p class="muted" style="margin:0;">
-          إجمالي مرات الفتح:
+          إجمالي مرات فتح الفيديوهات:
           <strong>
             <%= stats.videoViewsCount || 0 %>
           </strong>
@@ -511,253 +511,393 @@
     <% } else { %>
 
 
+      <%
+        const groupedVideoViews =
+          Object.values(
+            videoViews.reduce(
+              (groups, view) => {
+
+                const groupKey =
+                  String(
+                    view.userId ||
+                    view.email ||
+                    view.username ||
+                    "unknown"
+                  );
+
+                if (!groups[groupKey]) {
+
+                  groups[groupKey] = {
+                    userId:
+                      view.userId,
+
+                    username:
+                      view.username || "-",
+
+                    email:
+                      view.email || "",
+
+                    grade:
+                      view.grade,
+
+                    count:
+                      0,
+
+                    lastOpenedAt:
+                      null,
+
+                    lastChapterTitle:
+                      "-",
+
+                    lastLessonTitle:
+                      "-",
+
+                    lastTopicTitle:
+                      "-",
+
+                    views:
+                      []
+                  };
+
+                }
+
+
+                const group =
+                  groups[groupKey];
+
+
+                group.count += 1;
+
+                group.views.push(
+                  view
+                );
+
+
+                if (
+                  view.openedAt &&
+                  (
+                    !group.lastOpenedAt ||
+                    new Date(view.openedAt) >
+                    new Date(group.lastOpenedAt)
+                  )
+                ) {
+
+                  group.lastOpenedAt =
+                    view.openedAt;
+
+                  group.lastChapterTitle =
+                    view.chapterTitle ||
+                    "-";
+
+                  group.lastLessonTitle =
+                    view.lessonTitle ||
+                    "-";
+
+                  group.lastTopicTitle =
+                    view.topicTitle ||
+                    "فيديو الدرس الرئيسي";
+
+                }
+
+
+                return groups;
+
+              },
+
+              {}
+            )
+          ).sort(
+            (first, second) => {
+
+              if (!first.lastOpenedAt) {
+                return 1;
+              }
+
+              if (!second.lastOpenedAt) {
+                return -1;
+              }
+
+              return (
+                new Date(second.lastOpenedAt) -
+                new Date(first.lastOpenedAt)
+              );
+
+            }
+          );
+      %>
+
+
       <div
         style="
-          overflow-x:auto;
-          width:100%;
+          display:grid;
+          gap:16px;
         "
       >
 
-        <table
-          style="
-            width:100%;
-            border-collapse:collapse;
-            min-width:980px;
-          "
-        >
+        <% groupedVideoViews.forEach((studentActivity, index) => { %>
 
-          <thead>
+          <article
+            style="
+              padding:18px;
+              border:1px solid rgba(255,255,255,.09);
+              border-radius:18px;
+              background:rgba(15,23,42,.72);
+            "
+          >
 
-            <tr
+            <div
               style="
-                border-bottom:2px solid #eee;
+                display:flex;
+                align-items:flex-start;
+                justify-content:space-between;
+                gap:16px;
+                flex-wrap:wrap;
               "
             >
 
-              <th
+              <div
                 style="
-                  padding:15px 12px;
-                  text-align:right;
-                  white-space:nowrap;
-                "
-              >
-                الطالب
-              </th>
-
-              <th
-                style="
-                  padding:15px 12px;
-                  text-align:right;
-                  white-space:nowrap;
-                "
-              >
-                الصف
-              </th>
-
-              <th
-                style="
-                  padding:15px 12px;
-                  text-align:right;
-                  white-space:nowrap;
-                "
-              >
-                الفصل
-              </th>
-
-              <th
-                style="
-                  padding:15px 12px;
-                  text-align:right;
-                  white-space:nowrap;
-                "
-              >
-                الدرس
-              </th>
-
-              <th
-                style="
-                  padding:15px 12px;
-                  text-align:right;
-                  white-space:nowrap;
-                "
-              >
-                الموضوع
-              </th>
-
-              <th
-                style="
-                  padding:15px 12px;
-                  text-align:right;
-                  white-space:nowrap;
-                "
-              >
-                التاريخ والوقت
-              </th>
-
-              <th
-                style="
-                  padding:15px 12px;
-                  text-align:right;
-                  white-space:nowrap;
-                "
-              >
-                الفيديو
-              </th>
-
-            </tr>
-
-          </thead>
-
-
-          <tbody>
-
-            <% videoViews.forEach(view => { %>
-
-              <tr
-                style="
-                  border-bottom:1px solid #eee;
+                  display:flex;
+                  align-items:center;
+                  gap:12px;
+                  min-width:190px;
                 "
               >
 
-                <td
+                <div
                   style="
-                    padding:16px 12px;
-                    min-width:170px;
+                    width:46px;
+                    height:46px;
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
+                    flex-shrink:0;
+                    border-radius:14px;
+                    background:rgba(99,102,241,.16);
+                    font-size:20px;
+                    font-weight:900;
                   "
                 >
+                  <%= (
+                    studentActivity.username ||
+                    "?"
+                  ).charAt(0).toUpperCase() %>
+                </div>
 
-                  <strong>
-                    <%= view.username || "-" %>
+
+                <div>
+
+                  <strong
+                    style="
+                      display:block;
+                      margin-bottom:4px;
+                      font-size:16px;
+                    "
+                  >
+                    <%= studentActivity.username %>
                   </strong>
 
-                  <% if(view.email){ %>
+                  <% if(studentActivity.email){ %>
 
-                    <div
+                    <span
                       class="muted"
-                      style="
-                        font-size:13px;
-                        margin-top:4px;
-                      "
+                      style="font-size:13px;"
                     >
-                      <%= view.email %>
-                    </div>
+                      <%= studentActivity.email %>
+                    </span>
 
                   <% } %>
 
-                </td>
+                </div>
+
+              </div>
 
 
-                <td
+              <div
+                style="
+                  display:flex;
+                  gap:10px;
+                  flex-wrap:wrap;
+                "
+              >
+
+                <span
                   style="
-                    padding:16px 12px;
-                    min-width:110px;
+                    padding:7px 11px;
+                    border-radius:999px;
+                    background:rgba(99,102,241,.14);
+                    color:#c7d2fe;
+                    font-size:13px;
+                    font-weight:800;
                   "
                 >
-
-                  <%= view.grade === "second"
-                    ? "الثاني الثانوي"
-                    : view.grade === "third"
-                      ? "الثالث الثانوي"
-                      : "-"
+                  <%= studentActivity.grade === "second"
+                    ? "الصف الثاني"
+                    : studentActivity.grade === "third"
+                      ? "الصف الثالث"
+                      : "الصف غير محدد"
                   %>
+                </span>
 
-                </td>
 
-
-                <td
+                <span
                   style="
-                    padding:16px 12px;
-                    min-width:150px;
+                    padding:7px 11px;
+                    border-radius:999px;
+                    background:rgba(34,197,94,.13);
+                    color:#bbf7d0;
+                    font-size:13px;
+                    font-weight:800;
                   "
                 >
-                  <%= view.chapterTitle || "-" %>
-                </td>
+                  🎬
+                  <%= studentActivity.count %>
+                  مشاهدة
+                </span>
+
+              </div>
+
+            </div>
 
 
-                <td
+            <div
+              style="
+                margin-top:16px;
+                display:grid;
+                grid-template-columns:
+                  repeat(auto-fit, minmax(160px, 1fr));
+                gap:12px;
+              "
+            >
+
+              <div
+                style="
+                  padding:12px;
+                  border-radius:13px;
+                  background:rgba(255,255,255,.035);
+                "
+              >
+
+                <span
+                  class="muted"
                   style="
-                    padding:16px 12px;
-                    min-width:150px;
+                    display:block;
+                    margin-bottom:5px;
+                    font-size:12px;
                   "
                 >
-                  <%= view.lessonTitle || "-" %>
-                </td>
+                  آخر فصل
+                </span>
+
+                <strong>
+                  <%= studentActivity.lastChapterTitle %>
+                </strong>
+
+              </div>
 
 
-                <td
+              <div
+                style="
+                  padding:12px;
+                  border-radius:13px;
+                  background:rgba(255,255,255,.035);
+                "
+              >
+
+                <span
+                  class="muted"
                   style="
-                    padding:16px 12px;
-                    min-width:130px;
+                    display:block;
+                    margin-bottom:5px;
+                    font-size:12px;
                   "
                 >
-                  <%= view.topicTitle ||
-                    "فيديو الدرس الرئيسي"
-                  %>
-                </td>
+                  آخر درس
+                </span>
+
+                <strong>
+                  <%= studentActivity.lastLessonTitle %>
+                </strong>
+
+              </div>
 
 
-                <td
+              <div
+                style="
+                  padding:12px;
+                  border-radius:13px;
+                  background:rgba(255,255,255,.035);
+                "
+              >
+
+                <span
+                  class="muted"
                   style="
-                    padding:16px 12px;
-                    min-width:220px;
-                    white-space:nowrap;
+                    display:block;
+                    margin-bottom:5px;
+                    font-size:12px;
                   "
                 >
+                  آخر فيديو
+                </span>
 
-                  <% if(view.openedAt){ %>
+                <strong>
+                  <%= studentActivity.lastTopicTitle %>
+                </strong>
 
-                    <div
-                      style="
-                        font-weight:600;
-                        margin-bottom:6px;
-                      "
-                    >
-                      📅
-                      <%= new Date(
-                        view.openedAt
-                      ).toLocaleDateString(
-                        "en-GB",
-                        {
-                          timeZone:
-                            "Africa/Cairo",
-
-                          day:
-                            "2-digit",
-
-                          month:
-                            "2-digit",
-
-                          year:
-                            "numeric"
-                        }
-                      ) %>
-                    </div>
+              </div>
 
 
-                    <div>
-                      🕒
-                      <%= new Date(
-                        view.openedAt
-                      ).toLocaleTimeString(
-                        "en-US",
-                        {
-                          timeZone:
-                            "Africa/Cairo",
+              <div
+                style="
+                  padding:12px;
+                  border-radius:13px;
+                  background:rgba(255,255,255,.035);
+                "
+              >
 
-                          hour:
-                            "2-digit",
+                <span
+                  class="muted"
+                  style="
+                    display:block;
+                    margin-bottom:5px;
+                    font-size:12px;
+                  "
+                >
+                  آخر مشاهدة
+                </span>
 
-                          minute:
-                            "2-digit",
+                <strong>
 
-                          second:
-                            "2-digit",
+                  <% if(studentActivity.lastOpenedAt){ %>
 
-                          hour12:
-                            true
-                        }
-                      ) %>
-                    </div>
+                    <%= new Date(
+                      studentActivity.lastOpenedAt
+                    ).toLocaleDateString(
+                      "en-GB",
+                      {
+                        timeZone:
+                          "Africa/Cairo"
+                      }
+                    ) %>
+
+                    —
+
+                    <%= new Date(
+                      studentActivity.lastOpenedAt
+                    ).toLocaleTimeString(
+                      "ar-EG",
+                      {
+                        timeZone:
+                          "Africa/Cairo",
+
+                        hour:
+                          "2-digit",
+
+                        minute:
+                          "2-digit"
+                      }
+                    ) %>
 
                   <% } else { %>
 
@@ -765,43 +905,204 @@
 
                   <% } %>
 
-                </td>
+                </strong>
+
+              </div>
+
+            </div>
 
 
-                <td
-                  style="
-                    padding:16px 12px;
-                    white-space:nowrap;
-                  "
-                >
+            <button
+              class="btn primary small"
+              type="button"
+              style="margin-top:15px;"
+              onclick="toggleStudentVideoDetails(
+                <%= index %>,
+                this
+              )"
+            >
+              ▼ عرض التفاصيل
+            </button>
 
-                  <% if(view.videoUrl){ %>
 
-                    <a
-                      class="btn primary small"
-                      href="<%= view.videoUrl %>"
-                      target="_blank"
+            <div
+              id="videoDetails-<%= index %>"
+              style="
+                display:none;
+                margin-top:16px;
+                overflow-x:auto;
+              "
+            >
+
+              <table
+                style="
+                  width:100%;
+                  min-width:850px;
+                  border-collapse:collapse;
+                "
+              >
+
+                <thead>
+
+                  <tr
+                    style="
+                      border-bottom:
+                        1px solid
+                        rgba(255,255,255,.15);
+                    "
+                  >
+
+                    <th style="padding:12px; text-align:right;">
+                      الفصل
+                    </th>
+
+                    <th style="padding:12px; text-align:right;">
+                      الدرس
+                    </th>
+
+                    <th style="padding:12px; text-align:right;">
+                      الموضوع
+                    </th>
+
+                    <th style="padding:12px; text-align:right;">
+                      التاريخ
+                    </th>
+
+                    <th style="padding:12px; text-align:right;">
+                      الوقت
+                    </th>
+
+                    <th style="padding:12px; text-align:right;">
+                      الفيديو
+                    </th>
+
+                  </tr>
+
+                </thead>
+
+
+                <tbody>
+
+                  <% studentActivity.views
+                    .slice()
+                    .sort(
+                      (first, second) =>
+                        new Date(second.openedAt || 0) -
+                        new Date(first.openedAt || 0)
+                    )
+                    .forEach(view => { %>
+
+                    <tr
+                      style="
+                        border-bottom:
+                          1px solid
+                          rgba(255,255,255,.07);
+                      "
                     >
-                      ▶ فتح
-                    </a>
 
-                  <% } else { %>
+                      <td style="padding:12px;">
+                        <%= view.chapterTitle || "-" %>
+                      </td>
 
-                    <span class="muted">
-                      -
-                    </span>
+                      <td style="padding:12px;">
+                        <%= view.lessonTitle || "-" %>
+                      </td>
 
-                  <% } %>
+                      <td style="padding:12px;">
+                        <%= view.topicTitle ||
+                          "فيديو الدرس الرئيسي"
+                        %>
+                      </td>
 
-                </td>
+                      <td style="padding:12px; white-space:nowrap;">
 
-              </tr>
+                        <% if(view.openedAt){ %>
 
-            <% }) %>
+                          <%= new Date(
+                            view.openedAt
+                          ).toLocaleDateString(
+                            "en-GB",
+                            {
+                              timeZone:
+                                "Africa/Cairo"
+                            }
+                          ) %>
 
-          </tbody>
+                        <% } else { %>
 
-        </table>
+                          -
+
+                        <% } %>
+
+                      </td>
+
+                      <td style="padding:12px; white-space:nowrap;">
+
+                        <% if(view.openedAt){ %>
+
+                          <%= new Date(
+                            view.openedAt
+                          ).toLocaleTimeString(
+                            "ar-EG",
+                            {
+                              timeZone:
+                                "Africa/Cairo",
+
+                              hour:
+                                "2-digit",
+
+                              minute:
+                                "2-digit",
+
+                              second:
+                                "2-digit"
+                            }
+                          ) %>
+
+                        <% } else { %>
+
+                          -
+
+                        <% } %>
+
+                      </td>
+
+                      <td style="padding:12px;">
+
+                        <% if(view.videoUrl){ %>
+
+                          <a
+                            class="btn primary small"
+                            href="<%= view.videoUrl %>"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            ▶ فتح
+                          </a>
+
+                        <% } else { %>
+
+                          <span class="muted">
+                            -
+                          </span>
+
+                        <% } %>
+
+                      </td>
+
+                    </tr>
+
+                  <% }) %>
+
+                </tbody>
+
+              </table>
+
+            </div>
+
+          </article>
+
+        <% }) %>
 
       </div>
 
@@ -810,6 +1111,40 @@
   </div>
 
 </section>
+
+
+<script>
+
+function toggleStudentVideoDetails(
+  index,
+  button
+) {
+
+  const details =
+    document.getElementById(
+      "videoDetails-" + index
+    );
+
+
+  const isHidden =
+    details.style.display === "none" ||
+    details.style.display === "";
+
+
+  details.style.display =
+    isHidden
+      ? "block"
+      : "none";
+
+
+  button.innerHTML =
+    isHidden
+      ? "▲ إخفاء التفاصيل"
+      : "▼ عرض التفاصيل";
+
+}
+
+</script>
 
 
 </main>
