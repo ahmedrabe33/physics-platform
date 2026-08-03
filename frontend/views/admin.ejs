@@ -262,150 +262,411 @@
         الطلاب
       </h2>
 
+      <p class="muted">
+        اختر الصف لعرض الطلاب المسجلين.
+      </p>
+
+    </div>
+
+
+    <div
+      style="
+        display:flex;
+        gap:10px;
+        flex-wrap:wrap;
+      "
+    >
+
+      <button
+        id="secondGradeButton"
+        class="btn primary"
+        type="button"
+        onclick="showStudentsByGrade('second')"
+      >
+        2️⃣ عرض طلاب الصف الثاني
+      </button>
+
+
+      <button
+        id="thirdGradeButton"
+        class="btn primary"
+        type="button"
+        onclick="showStudentsByGrade('third')"
+      >
+        3️⃣ عرض طلاب الصف الثالث
+      </button>
+
+
+      <button
+        id="hideStudentsButton"
+        class="btn danger"
+        type="button"
+        style="display:none;"
+        onclick="hideStudentsSection()"
+      >
+        ▲ إخفاء الطلاب
+      </button>
+
     </div>
 
   </div>
 
 
-  <div class="students-grid">
+  <div
+    id="studentsSection"
+    style="display:none; margin-top:24px;"
+  >
 
-    <% students.forEach(student => { %>
+    <div
+      id="studentsSectionTitle"
+      style="
+        margin-bottom:18px;
+        font-size:20px;
+        font-weight:900;
+      "
+    ></div>
 
-      <article class="student-card">
 
-        <div class="student-top">
+    <div class="students-grid">
 
-          <div class="avatar">
-            <%= student.username.charAt(0).toUpperCase() %>
+      <% students.forEach(student => { %>
+
+        <article
+          class="student-card student-grade-card"
+          data-grade="<%= student.grade %>"
+        >
+
+          <div class="student-top">
+
+            <div class="avatar">
+              <%= student.username.charAt(0).toUpperCase() %>
+            </div>
+
+            <div>
+
+              <h3>
+                <%= student.username %>
+              </h3>
+
+              <p>
+                <%= student.email %>
+              </p>
+
+            </div>
+
+            <span class="badge <%= student.status %>">
+
+              <%= student.status === "approved"
+                ? "فعال"
+                : student.status === "pending"
+                  ? "بانتظار الموافقة"
+                  : student.status === "expired"
+                    ? "منتهي"
+                    : student.status === "rejected"
+                      ? "مرفوض"
+                      : student.status
+              %>
+
+            </span>
+
           </div>
 
-          <div>
 
-            <h3>
-              <%= student.username %>
-            </h3>
-
-            <p>
-              <%= student.email %>
-            </p>
-
-          </div>
-
-          <span class="badge <%= student.status %>">
-            <%= student.status %>
-          </span>
-
-        </div>
-
-
-        <div class="student-meta">
-
-          <span>
-            🎓
-            <%= student.grade === "second"
-              ? "الثاني الثانوي"
-              : "الثالث الثانوي"
-            %>
-          </span>
-
-
-          <span>
-            🗓
-            <%= new Date(
-              student.registeredAt
-            ).toLocaleDateString(
-              "en-GB"
-            ) %>
-          </span>
-
-
-          <% if(student.subscriptionExpiry){ %>
+          <div class="student-meta">
 
             <span>
-              ⏰
+              🎓
+              <%= student.grade === "second"
+                ? "الثاني الثانوي"
+                : "الثالث الثانوي"
+              %>
+            </span>
+
+
+            <span>
+              🗓
               <%= new Date(
-                student.subscriptionExpiry
+                student.registeredAt
               ).toLocaleDateString(
                 "en-GB"
               ) %>
             </span>
 
-          <% } %>
 
-        </div>
+            <% if(student.subscriptionExpiry){ %>
+
+              <span>
+                ⏰
+                <%= new Date(
+                  student.subscriptionExpiry
+                ).toLocaleDateString(
+                  "en-GB"
+                ) %>
+              </span>
+
+            <% } %>
+
+          </div>
 
 
-        <% if(student.paymentProof){ %>
+          <% if(student.paymentProof){ %>
 
-          <a
-            class="proof-link"
-            href="<%= student.paymentProof %>" target="_blank" rel="noopener noreferrer"
-            target="_blank"
-          >
-            🧾 عرض إثبات الدفع
-          </a>
-
-        <% } %>
-
-
-        <div class="card-actions">
-
-          <% if(student.status === "pending"){ %>
-
-            <form
-              method="POST"
-              action="/admin/approve/<%= student.userId %>"
+            <a
+              class="proof-link"
+              href="<%= student.paymentProof %>"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              <button class="btn success-btn small">
-                ✓ موافقة
-              </button>
-            </form>
-
-
-            <form
-              method="POST"
-              action="/admin/reject/<%= student.userId %>"
-            >
-              <button class="btn danger small">
-                رفض
-              </button>
-            </form>
-
-          <% } else { %>
-
-            <form
-              method="POST"
-              action="/admin/renew/<%= student.userId %>"
-            >
-              <button class="btn primary small">
-                ↻ تجديد شهر
-              </button>
-            </form>
+              🧾 عرض إثبات الدفع
+            </a>
 
           <% } %>
 
-          <form
-            method="POST"
-            action="/admin/delete/<%= student.userId %>"
-            onsubmit="return confirm('هل أنت متأكد من حذف حساب الطالب نهائيًا؟ لا يمكن التراجع عن الحذف.');"
-          >
-            <button
-              class="btn danger small"
-              type="submit"
+
+          <div class="card-actions">
+
+            <% if(student.status === "pending"){ %>
+
+              <form
+                method="POST"
+                action="/admin/approve/<%= student.userId %>"
+              >
+                <button
+                  class="btn success-btn small"
+                  type="submit"
+                >
+                  ✓ موافقة
+                </button>
+              </form>
+
+
+              <form
+                method="POST"
+                action="/admin/reject/<%= student.userId %>"
+              >
+                <button
+                  class="btn danger small"
+                  type="submit"
+                >
+                  رفض
+                </button>
+              </form>
+
+            <% } else { %>
+
+              <form
+                method="POST"
+                action="/admin/renew/<%= student.userId %>"
+              >
+                <button
+                  class="btn primary small"
+                  type="submit"
+                >
+                  ↻ تجديد شهر
+                </button>
+              </form>
+
+            <% } %>
+
+
+            <form
+              method="POST"
+              action="/admin/delete/<%= student.userId %>"
+              onsubmit="return confirm('هل أنت متأكد من حذف حساب الطالب نهائيًا؟ لا يمكن التراجع عن الحذف.');"
             >
-              🗑 حذف الحساب
-            </button>
-          </form>
+              <button
+                class="btn danger small"
+                type="submit"
+              >
+                🗑 حذف الحساب
+              </button>
+            </form>
 
-        </div>
+          </div>
 
-      </article>
+        </article>
 
-    <% }) %>
+      <% }) %>
+
+    </div>
+
+
+    <div
+      id="noStudentsMessage"
+      class="muted"
+      style="
+        display:none;
+        padding:25px;
+        text-align:center;
+      "
+    >
+      لا يوجد طلاب مسجلون في هذا الصف.
+    </div>
 
   </div>
 
 </section>
+
+
+<script>
+
+let selectedStudentsGrade = null;
+
+
+function showStudentsByGrade(grade) {
+
+  const section =
+    document.getElementById(
+      "studentsSection"
+    );
+
+  const title =
+    document.getElementById(
+      "studentsSectionTitle"
+    );
+
+  const hideButton =
+    document.getElementById(
+      "hideStudentsButton"
+    );
+
+  const secondButton =
+    document.getElementById(
+      "secondGradeButton"
+    );
+
+  const thirdButton =
+    document.getElementById(
+      "thirdGradeButton"
+    );
+
+  const noStudentsMessage =
+    document.getElementById(
+      "noStudentsMessage"
+    );
+
+  const cards =
+    document.querySelectorAll(
+      ".student-grade-card"
+    );
+
+
+  if (
+    selectedStudentsGrade === grade &&
+    section.style.display === "block"
+  ) {
+
+    hideStudentsSection();
+    return;
+
+  }
+
+
+  selectedStudentsGrade =
+    grade;
+
+  section.style.display =
+    "block";
+
+  hideButton.style.display =
+    "inline-flex";
+
+
+  title.textContent =
+    grade === "second"
+      ? "طلاب الصف الثاني الثانوي"
+      : "طلاب الصف الثالث الثانوي";
+
+
+  secondButton.classList.toggle(
+    "success-btn",
+    grade === "second"
+  );
+
+  thirdButton.classList.toggle(
+    "success-btn",
+    grade === "third"
+  );
+
+
+  let visibleStudents = 0;
+
+
+  cards.forEach((card) => {
+
+    const isVisible =
+      card.dataset.grade === grade;
+
+    card.style.display =
+      isVisible
+        ? ""
+        : "none";
+
+
+    if (isVisible) {
+      visibleStudents += 1;
+    }
+
+  });
+
+
+  noStudentsMessage.style.display =
+    visibleStudents === 0
+      ? "block"
+      : "none";
+
+
+  section.scrollIntoView({
+    behavior: "smooth",
+    block: "start"
+  });
+
+}
+
+
+function hideStudentsSection() {
+
+  const section =
+    document.getElementById(
+      "studentsSection"
+    );
+
+  const hideButton =
+    document.getElementById(
+      "hideStudentsButton"
+    );
+
+  const secondButton =
+    document.getElementById(
+      "secondGradeButton"
+    );
+
+  const thirdButton =
+    document.getElementById(
+      "thirdGradeButton"
+    );
+
+
+  section.style.display =
+    "none";
+
+  hideButton.style.display =
+    "none";
+
+  secondButton.classList.remove(
+    "success-btn"
+  );
+
+  thirdButton.classList.remove(
+    "success-btn"
+  );
+
+  selectedStudentsGrade =
+    null;
+
+}
+
+</script>
 
 
 <!-- ================================================== -->
