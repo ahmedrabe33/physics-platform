@@ -1406,6 +1406,18 @@ app.get(
         totalStudents:
           students.length,
 
+        secondGradeStudents:
+          students.filter(
+            (student) =>
+              student.grade === "second"
+          ).length,
+
+        thirdGradeStudents:
+          students.filter(
+            (student) =>
+              student.grade === "third"
+          ).length,
+
         pendingStudents:
           students.filter(
             (student) =>
